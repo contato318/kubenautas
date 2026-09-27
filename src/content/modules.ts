@@ -1,6 +1,7 @@
 import type { Module, Question } from '../types';
 import { extraQuizzes } from './quizzesExtra';
 import { helmModule } from './helmModule';
+import { troubleshootingModule } from './troubleshootingModule';
 
 const files = import.meta.glob('./**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const md = (path: string) => {
@@ -453,6 +454,7 @@ const baseModules: Module[] = [
     ],
   },
   helmModule,
+  troubleshootingModule,
 ];
 
 /** Soma as perguntas extras (quizzesExtra.ts) ao quiz de cada lição. */

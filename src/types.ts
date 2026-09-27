@@ -26,7 +26,15 @@ export type SimulatorId =
   | 'helm-dependencies'
   | 'helm-hooks'
   | 'helm-semver'
-  | 'helm-upgrade';
+  | 'helm-upgrade'
+  | 'ts-diagnosis'
+  | 'ts-exit-code'
+  | 'ts-scheduling'
+  | 'ts-network-path'
+  | 'ts-node'
+  | 'ts-volume'
+  | 'ts-control-plane'
+  | 'ts-tools';
 
 export interface Question {
   q: string;

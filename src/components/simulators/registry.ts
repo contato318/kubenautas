@@ -35,5 +35,13 @@ export const simulators: SimulatorInfo[] = [
   { id: 'helm-hooks', title: 'Helm: hooks e testes', emoji: '🪝', description: 'Fases, pesos, políticas de deleção, hooks que falham e o que sobra no cluster.' },
   { id: 'helm-semver', title: 'Helm: versões e restrições', emoji: '🔢', description: 'Qual versão ~, ^, x, intervalos e prereleases escolhem numa lista de versões publicadas.' },
   { id: 'helm-upgrade', title: 'Helm: three-way merge', emoji: '🔄', description: 'Drift, HPA e sidecars: compare o upgrade do Helm 3+ (3-way) com o do Helm 2 (2-way).' },
+  { id: 'ts-diagnosis', title: 'Árvore de diagnóstico', emoji: '🧭', description: 'Do sintoma (STATUS do Pod) à causa provável e aos comandos certos.' },
+  { id: 'ts-exit-code', title: 'Decodificador de exit codes', emoji: '🔢', description: 'Exit codes, sinais e o backoff exponencial do CrashLoopBackOff.' },
+  { id: 'ts-scheduling', title: 'Por que o Pod está Pending?', emoji: '📌', description: 'Monte a mensagem FailedScheduling nó a nó: recursos, taints, selectors, cordon.' },
+  { id: 'ts-network-path', title: 'Caminho da requisição', emoji: '🛰️', description: 'Injete falhas em DNS, Service, endpoints, NetworkPolicy e veja o sintoma no cliente.' },
+  { id: 'ts-node', title: 'Nó em apuros', emoji: '🖥️', description: 'Linha do tempo de um nó com kubelet, rede, runtime ou disco com problemas.' },
+  { id: 'ts-volume', title: 'PVC e volumes', emoji: '💾', description: 'StorageClass, provisioner, Multi-Attach, permissões e quotas.' },
+  { id: 'ts-control-plane', title: 'Control plane sob falha', emoji: '🏛️', description: 'Derrube API server, etcd, scheduler, webhooks e veja o que ainda funciona.' },
+  { id: 'ts-tools', title: 'Qual ferramenta usar?', emoji: '🧰', description: '10 missões: escolha o comando certo para cada situação.' },
   { id: 'pod-lifecycle', title: 'Ciclo de vida e falhas', emoji: '🩺', description: 'Provoque CrashLoopBackOff, OOMKilled, ImagePullBackOff e falhas de probes, e leia os eventos.' },
 ];

@@ -27,6 +27,14 @@ import HelmDependenciesSim from './HelmDependenciesSim';
 import HelmHooksSim from './HelmHooksSim';
 import HelmSemverSim from './HelmSemverSim';
 import HelmUpgradeSim from './HelmUpgradeSim';
+import TsDiagnosisSim from './TsDiagnosisSim';
+import TsExitCodeSim from './TsExitCodeSim';
+import TsSchedulingSim from './TsSchedulingSim';
+import TsNetworkPathSim from './TsNetworkPathSim';
+import TsNodeSim from './TsNodeSim';
+import TsVolumeSim from './TsVolumeSim';
+import TsControlPlaneSim from './TsControlPlaneSim';
+import TsToolsSim from './TsToolsSim';
 
 const map: Record<SimulatorId, () => JSX.Element> = {
   deployment: DeploymentSim,
@@ -57,6 +65,14 @@ const map: Record<SimulatorId, () => JSX.Element> = {
   'helm-hooks': HelmHooksSim,
   'helm-semver': HelmSemverSim,
   'helm-upgrade': HelmUpgradeSim,
+  'ts-diagnosis': TsDiagnosisSim,
+  'ts-exit-code': TsExitCodeSim,
+  'ts-scheduling': TsSchedulingSim,
+  'ts-network-path': TsNetworkPathSim,
+  'ts-node': TsNodeSim,
+  'ts-volume': TsVolumeSim,
+  'ts-control-plane': TsControlPlaneSim,
+  'ts-tools': TsToolsSim,
 };
 
 export default function SimulatorHost({ id }: { id: SimulatorId }) {
