@@ -2,6 +2,7 @@ import type { Question, SimulatorId } from '../types';
 import { helmCaseMeta } from './helmCases';
 import { troubleshootingCaseMeta } from './troubleshootingCases';
 import { operatorsCaseMeta } from './operatorsCases';
+import { containersCaseMeta } from './containersCases';
 
 /**
  * Estudos de caso de problemas recorrentes em Kubernetes.
@@ -277,6 +278,6 @@ const meta: Omit<CaseStudy, 'symptoms' | 'solution'>[] = [
   },
 ];
 
-export const cases: CaseStudy[] = [...meta, ...helmCaseMeta, ...troubleshootingCaseMeta, ...operatorsCaseMeta].map((m) => ({ ...m, ...load(m.slug) }));
+export const cases: CaseStudy[] = [...meta, ...helmCaseMeta, ...troubleshootingCaseMeta, ...operatorsCaseMeta, ...containersCaseMeta].map((m) => ({ ...m, ...load(m.slug) }));
 
 export const findCase = (slug: string) => cases.find((c) => c.slug === slug);

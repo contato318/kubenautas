@@ -1,0 +1,181 @@
+import type { Module, Question } from '../types';
+
+/** Módulo pré-requisito: containers e Docker, do kernel ao Kubernetes. 10 lições com quiz de 10 perguntas. */
+
+const files = import.meta.glob('./containers/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const md = (slug: string) => {
+  const c = files[`./containers/${slug}.md`];
+  if (!c) throw new Error(`Conteúdo não encontrado: containers/${slug}`);
+  return c;
+};
+const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
+
+export const containersModule: Module = {
+  id: 'containers',
+  title: 'Pré-requisito: Containers (Docker)',
+  description: 'Curso completo de containers e Docker: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes.',
+  level: 'Básico',
+  emoji: '🐳',
+  lessons: [
+    {
+      slug: 'o-que-sao-containers', title: 'O que são containers (e o que o Docker faz)', summary: 'Container × VM, namespaces, cgroups, camadas, OCI e a pilha docker → containerd → runc.', minutes: 12,
+      content: md('o-que-sao-containers'),
+      quiz: [
+        q('O que é um container, tecnicamente?', ['Uma máquina virtual pequena', 'Um processo do host isolado por recursos do kernel (namespaces e cgroups)', 'Um arquivo compactado', 'Um hipervisor'], 1, 'Por isso inicia em milissegundos.'),
+        q('Qual a principal diferença entre container e VM?', ['Containers são sempre mais seguros', 'Containers compartilham o kernel do host; cada VM tem kernel próprio', 'VMs não usam disco', 'Não há diferença'], 1, 'VMs emulam um computador inteiro.'),
+        q('Qual mecanismo do Linux limita quanta memória e CPU um container usa?', ['Namespaces', 'cgroups', 'overlayfs', 'iptables'], 1, 'Namespaces isolam o que se vê; cgroups limitam o que se usa.'),
+        q('O namespace pid faz com que…', ['O container tenha IP próprio', 'O processo principal do container seja o PID 1 e só veja seus próprios processos', 'O hostname mude', 'A memória seja limitada'], 1, 'Cada namespace isola um recurso.'),
+        q('Por que dez containers da mesma imagem não copiam os arquivos dez vezes?', ['Compressão', 'As camadas da imagem são somente leitura e compartilhadas; cada container só ganha uma camada gravável fina', 'Deduplicação do disco', 'Eles usam a rede'], 1, 'Union filesystem / overlayfs.'),
+        q('Como o Docker Desktop roda containers Linux num Mac?', ['Nativamente no macOS', 'Numa VM Linux leve que ele gerencia', 'Traduzindo chamadas para o kernel do macOS', 'Não roda'], 1, 'Containers Linux precisam de kernel Linux.'),
+        q('O que a OCI padronizou?', ['A linguagem das aplicações', 'Formato de imagem, runtime e distribuição', 'Os comandos do kubectl', 'O Docker Compose'], 1, 'Imagens do Docker rodam em containerd, CRI-O, Podman…'),
+        q('Na pilha do Docker, qual componente cria de fato o processo com namespaces e cgroups?', ['docker CLI', 'dockerd', 'containerd', 'runc'], 3, 'containerd gerencia; runc executa.'),
+        q('Qual runtime é usado pela maioria dos clusters Kubernetes hoje?', ['Docker Engine', 'containerd', 'VirtualBox', 'LXD'], 1, 'Também CRI-O em algumas distribuições.'),
+        q('Qual a relação entre imagem e container?', ['São a mesma coisa', 'A imagem é o molde imutável; o container é uma instância dela com camada gravável própria', 'O container gera a imagem ao iniciar', 'A imagem é o processo'], 1, 'Como classe e objeto.'),
+      ],
+    },
+    {
+      slug: 'imagens-e-registries', title: 'Imagens, tags, digests e registries', summary: 'Nome completo, latest, digests, camadas, multi-arquitetura, push/pull e imagens base.', minutes: 13,
+      content: md('imagens-e-registries'),
+      quiz: [
+        q('Qual registry é usado quando o nome da imagem não indica nenhum (ex.: nginx)?', ['ghcr.io', 'docker.io (Docker Hub)', 'quay.io', 'O registry local'], 1, 'nginx = docker.io/library/nginx.'),
+        q('Qual a diferença entre tag e digest?', ['Nenhuma', 'A tag é um rótulo móvel; o digest (sha256) identifica bytes imutáveis', 'O digest é mais curto', 'A tag é obrigatória no push'], 1, 'Para garantia total, use digest.'),
+        q('O que a tag latest significa?', ['A imagem mais nova publicada', 'Apenas a última imagem que alguém marcou como latest — é uma tag como outra qualquer', 'A versão estável', 'A versão LTS'], 1, 'Por isso é perigosa em produção.'),
+        q('Qual comando mostra as camadas de uma imagem e as instruções que as criaram?', ['docker ps', 'docker history', 'docker logs', 'docker diff'], 1, 'Com --no-trunc mostra os comandos completos.'),
+        q('O que docker tag api:dev ghcr.io/org/api:1.0 faz?', ['Copia a imagem para o registry', 'Cria outro nome apontando para a mesma imagem local', 'Renomeia e apaga a original', 'Constrói a imagem'], 1, 'O envio é feito por docker push.'),
+        q('Uma imagem multi-arquitetura é…', ['Uma imagem com dois sistemas operacionais', 'Um índice que aponta para variantes por plataforma (amd64, arm64…)', 'Uma imagem maior', 'Uma imagem sem base'], 1, 'O pull escolhe a variante da máquina.'),
+        q('Por que a imagem alpine pode causar problemas com algumas bibliotecas?', ['É muito grande', 'Usa musl em vez de glibc', 'Não tem sistema de arquivos', 'Não suporta rede'], 1, 'Binários e wheels compilados para glibc podem falhar.'),
+        q('Qual imagem base não tem shell nem gerenciador de pacotes, reduzindo a superfície de ataque?', ['ubuntu', 'distroless', 'debian', 'centos'], 1, 'scratch é ainda mais vazia.'),
+        q('Seu CI começou a falhar com toomanyrequests ao baixar imagens do Docker Hub. Causa provável?', ['Disco cheio', 'Limite de pulls para usuários anônimos/gratuitos', 'Tag errada', 'Falta de CPU'], 1, 'Autentique ou use um registry espelho.'),
+        q('Como transferir uma imagem para uma máquina sem acesso ao registry?', ['docker export do container', 'docker save para um .tar e docker load no destino', 'docker cp', 'Não é possível'], 1, 'save/load preserva camadas e tags.'),
+      ],
+    },
+    {
+      slug: 'executando-containers', title: 'Executando containers: ciclo de vida, logs e sinais', summary: 'docker run, estados, logs, exec, inspect, exit codes, SIGTERM/SIGKILL, PID 1 e restart policies.', minutes: 14,
+      content: md('executando-containers'), simulator: 'ts-exit-code',
+      quiz: [
+        q('O que --rm faz no docker run?', ['Remove a imagem', 'Remove o container quando ele termina', 'Reinicia o container', 'Roda como root'], 1, 'Útil para comandos pontuais.'),
+        q('Por que docker run ubuntu termina imediatamente?', ['A imagem está quebrada', 'O container vive enquanto seu processo principal vive; o bash sem terminal sai na hora', 'Falta memória', 'O Docker bloqueia ubuntu'], 1, 'Use -it para um shell interativo.'),
+        q('Qual comando lista também os containers que já terminaram?', ['docker ps', 'docker ps -a', 'docker images', 'docker top'], 1, 'Filtre com --filter status=exited.'),
+        q('Onde uma aplicação em container deve escrever seus logs?', ['Em /var/log dentro do container', 'Em stdout/stderr', 'Num volume obrigatório', 'Em /tmp'], 1, 'Docker e Kubernetes capturam essa saída.'),
+        q('Qual a diferença entre docker exec e docker run?', ['Nenhuma', 'exec executa um novo processo num container que já está rodando; run cria um container novo', 'exec cria imagens', 'run só funciona com -d'], 1, 'exec é o equivalente a kubectl exec.'),
+        q('Um container termina com exit code 143. O que isso indica?', ['Falta de memória', 'Encerrado por SIGTERM (128+15), um desligamento normal', 'Comando não encontrado', 'Erro de sintaxe'], 1, '137 seria SIGKILL.'),
+        q('O que docker stop faz?', ['SIGKILL imediato', 'Envia SIGTERM, espera 10 s (padrão) e então envia SIGKILL', 'Pausa o container', 'Remove o container'], 1, 'É o grace period do Docker.'),
+        q('Com CMD node server.js (forma shell), por que o docker stop sempre demora 10 s?', ['O node é lento', 'O PID 1 é o /bin/sh, que não repassa o SIGTERM para o node', 'Falta de CPU', 'O Docker ignora sinais'], 1, 'Use a forma exec ou exec no script.'),
+        q('Qual política de reinício não reinicia um container que você parou manualmente?', ['always', 'unless-stopped', 'on-failure', 'no'], 1, 'always reinicia inclusive após reiniciar o daemon.'),
+        q('Qual comando mostra se o container foi morto por falta de memória?', ["docker inspect -f '{{.State.OOMKilled}}' api", 'docker logs api', 'docker ps', 'docker port api'], 0, 'Combine com o ExitCode 137.'),
+      ],
+    },
+    {
+      slug: 'dockerfile', title: 'Dockerfile: construindo imagens', summary: 'Instruções, ENTRYPOINT × CMD, formas exec e shell, contexto, .dockerignore, cache e HEALTHCHECK.', minutes: 15,
+      content: md('dockerfile'),
+      quiz: [
+        q('O que EXPOSE 8080 faz?', ['Publica a porta no host', 'Documenta a porta que a aplicação usa; não publica nada', 'Abre o firewall', 'Cria um Service'], 1, 'Publicar é com -p.'),
+        q('Por que preferir COPY a ADD?', ['COPY é mais rápido', 'ADD tem comportamentos implícitos (extrai tar, baixa URLs); COPY é previsível', 'ADD está obsoleto', 'COPY comprime'], 1, 'Use ADD só quando precisar desses recursos.'),
+        q('ENTRYPOINT ["python", "manage.py"] e CMD ["runserver"]. O que docker run app migrate executa?', ['python manage.py runserver migrate', 'python manage.py migrate', 'migrate', 'runserver'], 1, 'Argumentos do run substituem o CMD.'),
+        q('Por que usar a forma exec (JSON) no CMD?', ['É mais curta', 'O processo vira o PID 1 e recebe sinais diretamente', 'Permite variáveis de shell', 'É obrigatória'], 1, 'A forma shell coloca o sh como PID 1.'),
+        q('O que é o contexto de build?', ['A imagem base', 'O conjunto de arquivos (ex.: a pasta .) enviado ao builder', 'O Dockerfile apenas', 'As variáveis de ambiente'], 1, 'Controle com .dockerignore.'),
+        q('Por que copiar package.json e rodar npm ci ANTES de COPY . .?', ['Por segurança', 'Para que mudanças no código não invalidem o cache da instalação de dependências', 'Porque o npm exige', 'Para reduzir a imagem'], 1, 'Uma camada alterada refaz todas as seguintes.'),
+        q('Um RUN rm -rf /tmp/grande numa camada posterior reduz o tamanho da imagem?', ['Sim, sempre', 'Não: o arquivo continua na camada onde foi criado', 'Só com --squash obrigatório', 'Só no Alpine'], 1, 'Limpe no mesmo RUN que cria.'),
+        q('Qual a diferença entre ARG e ENV?', ['Nenhuma', 'ARG existe só durante o build; ENV fica na imagem e no container', 'ENV é só para o build', 'ARG é secreto'], 1, 'Nenhum dos dois serve para segredos.'),
+        q('Qual instrução evita usar RUN cd /app?', ['ENV', 'WORKDIR', 'USER', 'VOLUME'], 1, 'WORKDIR vale para as instruções seguintes e para o container.'),
+        q('O HEALTHCHECK do Dockerfile é usado pelo Kubernetes?', ['Sim, como liveness', 'Não: o Kubernetes ignora e usa probes', 'Sim, como readiness', 'Só com containerd'], 1, 'Declare readinessProbe e livenessProbe.'),
+      ],
+    },
+    {
+      slug: 'builds-otimizados', title: 'Builds otimizados: multi-stage, BuildKit e multiplataforma', summary: 'Multi-stage, cache mounts, secret mounts, cache no CI, buildx, tamanho e reprodutibilidade.', minutes: 14,
+      content: md('builds-otimizados'),
+      quiz: [
+        q('Qual o principal benefício de um multi-stage build?', ['Build mais lento', 'A imagem final leva só o necessário para rodar, sem compiladores e dependências de build', 'Mais camadas', 'Suporte a Windows'], 1, 'COPY --from copia só os artefatos.'),
+        q('Como copiar um arquivo de um estágio chamado build?', ['COPY build:/app .', 'COPY --from=build /app/dist ./dist', 'ADD build /app', 'FROM build COPY'], 1, 'Estágios são nomeados com AS.'),
+        q('Qual base final é ideal para um binário Go estático?', ['golang:1.23', 'scratch ou distroless/static', 'ubuntu', 'node:22'], 1, 'Imagens de poucos MB.'),
+        q('Para que serve RUN --mount=type=cache?', ['Guardar a imagem', 'Manter um diretório de cache (pip, npm) entre builds sem gravá-lo na imagem', 'Acelerar a rede', 'Comprimir camadas'], 1, 'Recurso do BuildKit.'),
+        q('Como usar um token privado no build sem que ele fique na imagem?', ['ARG TOKEN', 'RUN --mount=type=secret com docker build --secret', 'ENV TOKEN', 'COPY .npmrc'], 1, 'O segredo existe só durante aquele RUN.'),
+        q('Por que builds no CI costumam ser lentos mesmo sem mudanças?', ['O CI é lento', 'Os runners começam sem o cache de camadas', 'O Docker desativa cache no CI', 'Por causa do registry'], 1, 'Use --cache-from/--cache-to.'),
+        q('Qual comando constrói uma imagem para amd64 e arm64 ao mesmo tempo?', ['docker build --arch all', 'docker buildx build --platform linux/amd64,linux/arm64', 'docker compose build', 'docker save --multi'], 1, 'Buildx com emulação ou nós nativos.'),
+        q('O que docker build --target test faz?', ['Roda os testes do Docker', 'Constrói até o estágio chamado test', 'Envia para o registry test', 'Cria uma tag test'], 1, 'Útil para rodar testes no CI.'),
+        q('Qual ferramenta mostra camada por camada o que ocupa espaço numa imagem?', ['dive', 'curl', 'kubectl', 'helm'], 0, 'docker history também ajuda.'),
+        q('O que torna um build mais reprodutível?', ['Usar latest em tudo', 'Fixar versões da base e das dependências (lockfiles, digests)', 'apt-get upgrade em cada build', 'Desativar o cache'], 1, 'Mesma entrada, mesma imagem.'),
+      ],
+    },
+    {
+      slug: 'armazenamento', title: 'Armazenamento: camada gravável, volumes e bind mounts', summary: 'Dados efêmeros, volumes × bind mounts × tmpfs, caminhos, UIDs, backup e desenvolvimento.', minutes: 12,
+      content: md('armazenamento'),
+      quiz: [
+        q('O que acontece com arquivos gravados fora de volumes quando o container é removido?', ['Vão para a imagem', 'São perdidos junto com a camada gravável', 'Vão para /var/lib/docker/backup', 'Ficam no registry'], 1, 'Containers devem ser descartáveis.'),
+        q('Qual a diferença entre volume e bind mount?', ['Nenhuma', 'Volume é gerenciado pelo Docker; bind mount usa um caminho qualquer do host', 'Bind mount é mais seguro', 'Volume só funciona no Linux'], 1, 'Volumes para dados; bind mounts para código e config em dev.'),
+        q('Onde o Postgres oficial grava seus dados?', ['/var/lib/postgres', '/var/lib/postgresql/data', '/data', '/opt/postgres'], 1, 'Montar no caminho errado não protege nada.'),
+        q('Com -v /caminho (sem origem), o que é criado?', ['Um bind mount', 'Um volume anônimo', 'Um tmpfs', 'Nada'], 1, 'Difícil de encontrar depois: prefira volumes nomeados.'),
+        q('Por que preferir --mount type=bind a -v para bind mounts?', ['É mais rápido', 'Falha se a origem não existir, em vez de criar um diretório vazio em silêncio', 'Permite escrita', 'É obrigatório'], 1, 'Evita surpresas com typos no caminho.'),
+        q('A aplicação roda como UID 1000 e o diretório montado pertence ao root. O que acontece?', ['Funciona', 'Permission denied ao escrever', 'O Docker muda o dono', 'O container vira root'], 1, 'Permissões usam UIDs numéricos.'),
+        q('O que um bind mount faz com o conteúdo que a imagem tinha naquele caminho?', ['Mescla', 'Esconde (o conteúdo do host aparece no lugar)', 'Apaga da imagem', 'Copia para o host'], 1, 'Volumes vazios, ao contrário, recebem uma cópia inicial.'),
+        q('Qual comando remove volumes não usados por nenhum container?', ['docker rm -v', 'docker volume prune', 'docker image prune', 'docker system info'], 1, 'Cuidado: dados apagados não voltam.'),
+        q('Qual a forma mais segura de fazer backup de um banco em container?', ['Copiar os arquivos com o banco rodando', 'Usar a ferramenta do banco (pg_dump, mysqldump)', 'docker commit', 'docker export'], 1, 'Cópia de arquivos em uso pode ficar inconsistente.'),
+        q('Qual tipo de montagem guarda dados na memória?', ['volume', 'bind', 'tmpfs', 'overlay'], 2, 'Bom para temporários sensíveis.'),
+      ],
+    },
+    {
+      slug: 'redes', title: 'Redes de containers', summary: 'bridge, host, none, publicação de portas, localhost de cada container, DNS em redes próprias e diagnóstico.', minutes: 13,
+      content: md('redes'),
+      quiz: [
+        q('Dentro de um container, localhost se refere a…', ['O host', 'O próprio container', 'O gateway da rede', 'O container db'], 1, 'Cada container tem seu namespace de rede.'),
+        q('A app escuta em 127.0.0.1:3000 e você usou -p 3000:3000. O que acontece ao acessar do host?', ['Funciona', 'Falha (empty reply/connection reset): a app precisa escutar em 0.0.0.0', 'Funciona só com HTTPS', 'O Docker corrige'], 1, 'Conexões chegam pela interface do container, não pelo loopback.'),
+        q('Por que containers na rede bridge padrão não se encontram pelo nome?', ['Bug', 'A rede padrão não tem DNS embutido; redes criadas pelo usuário têm', 'Nomes são proibidos', 'Falta de -p'], 1, 'Crie uma rede com docker network create.'),
+        q('Numa rede própria, a api acessa o banco em db:5432. É preciso publicar a porta do db com -p?', ['Sim, sempre', 'Não: dentro da rede a comunicação é direta; -p é só para acesso de fora', 'Só em produção', 'Só no Linux'], 1, 'Publique apenas o necessário.'),
+        q('O que -p 127.0.0.1:8080:80 faz?', ['Publica em todas as interfaces', 'Publica a porta só para acesso a partir do próprio host', 'Bloqueia a porta', 'Cria uma rede'], 1, 'Evita expor serviços internos.'),
+        q('Como um container acessa um serviço rodando no host (Docker Desktop)?', ['localhost', 'host.docker.internal', '127.0.0.11', 'db'], 1, 'No Linux, adicione --add-host=host.docker.internal:host-gateway.'),
+        q('O que o driver de rede host faz?', ['Cria uma rede isolada', 'O container usa a rede do host diretamente, sem isolamento', 'Desliga a rede', 'Conecta vários hosts'], 1, 'Sem -p e sem isolamento.'),
+        q('curl: Could not resolve host: db. Causa provável?', ['Porta errada', 'Os containers não estão na mesma rede definida pelo usuário', 'Falta de memória', 'Imagem errada'], 1, 'Resolução de nomes depende da rede.'),
+        q('Para que serve docker run --network container:api nicolaka/netshoot?', ['Criar uma rede', 'Entrar no namespace de rede da api com ferramentas de diagnóstico', 'Copiar a api', 'Reiniciar a api'], 1, 'É o que kubectl debug faz num Pod.'),
+        q('No Kubernetes, containers do mesmo Pod se comunicam como?', ['Pelo IP do nó', 'Por localhost, pois compartilham o namespace de rede', 'Só via Service', 'Não se comunicam'], 1, 'O Pod é um host lógico.'),
+      ],
+    },
+    {
+      slug: 'docker-compose', title: 'Docker Compose: aplicações com vários containers', summary: 'compose.yaml, rede e DNS por serviço, depends_on com healthcheck, .env, perfis, watch e paralelo com Kubernetes.', minutes: 13,
+      content: md('docker-compose'),
+      quiz: [
+        q('Como um serviço encontra outro no Compose?', ['Pelo IP fixo', 'Pelo nome do serviço, na rede criada para o projeto', 'Por variáveis automáticas', 'Só com links'], 1, 'O Compose cria a rede e o DNS.'),
+        q('depends_on: [db] garante o quê?', ['Que o banco aceita conexões', 'Apenas que o container db foi iniciado antes', 'Que o banco tem dados', 'Nada'], 1, 'Use condition: service_healthy com healthcheck.'),
+        q('Qual condição espera um serviço de migração terminar com sucesso?', ['service_started', 'service_healthy', 'service_completed_successfully', 'service_ready'], 2, 'Ideal para jobs de inicialização.'),
+        q('O que docker compose down -v faz a mais que down?', ['Remove imagens', 'Remove também os volumes nomeados — apagando os dados', 'Remove a rede', 'Nada'], 1, 'Use com cuidado.'),
+        q('Para que serve o arquivo .env ao lado do compose.yaml?', ['É copiado para todos os containers', 'Fornecer valores para interpolar ${VAR} no próprio compose.yaml', 'Configurar o Docker Engine', 'Guardar logs'], 1, 'env_file: injeta variáveis nos containers.'),
+        q('O que profiles: [debug] em um serviço faz?', ['Liga logs de debug', 'O serviço só sobe quando o perfil debug é ativado', 'Cria um usuário debug', 'Desativa o serviço'], 1, 'docker compose --profile debug up.'),
+        q('Como rodar 3 réplicas de um serviço worker no Compose?', ['replicas: 3 em depends_on', 'docker compose up -d --scale worker=3', 'Três arquivos compose', 'Não é possível'], 1, 'Sem container_name fixo nem porta fixa no host.'),
+        q('docker compose up rodado duas vezes sem mudanças…', ['Duplica os containers', 'Não recria nada: só altera o que mudou', 'Apaga os volumes', 'Falha'], 1, 'É declarativo e idempotente.'),
+        q('No Kubernetes, o equivalente a um serviço do Compose com ports costuma ser…', ['Um ConfigMap', 'Um Deployment mais um Service', 'Um Job', 'Um Namespace'], 1, 'Volumes viram PVCs; healthcheck vira probes.'),
+        q('Por que a aplicação deve reconectar sozinha mesmo com depends_on bem configurado?', ['Por estilo', 'Em produção dependências caem e voltam, e o Kubernetes não garante ordem de inicialização', 'Porque o Compose ignora depends_on', 'Para usar menos CPU'], 1, 'Resiliência é responsabilidade da aplicação.'),
+      ],
+    },
+    {
+      slug: 'seguranca-e-recursos', title: 'Segurança e limites de recursos', summary: 'Usuário não-root, capabilities, read-only, segredos fora da imagem, scan e assinatura, limites e OOM.', minutes: 14,
+      content: md('seguranca-e-recursos'), simulator: 'qos',
+      quiz: [
+        q('Com qual usuário o processo de um container roda por padrão?', ['nobody', 'root (UID 0)', 'O usuário do host', 'docker'], 1, 'Declare USER na imagem.'),
+        q('Por que usar UID numérico em USER?', ['É mais rápido', 'Permite ao Kubernetes verificar runAsNonRoot', 'Nomes são proibidos', 'Economiza espaço'], 1, 'Nomes não podem ser validados sem ler /etc/passwd.'),
+        q('Qual opção deixa o sistema de arquivos raiz do container somente leitura?', ['--no-write', '--read-only', '--cap-drop ALL', '--immutable'], 1, 'Combine com tmpfs para /tmp.'),
+        q('Montar /var/run/docker.sock num container de aplicação equivale a…', ['Nada de especial', 'Dar controle total do host (root) a esse container', 'Acelerar builds', 'Limitar a CPU'], 1, 'Assim como --privileged.'),
+        q('Um segredo foi copiado para a imagem e removido numa camada seguinte. Ele está seguro?', ['Sim', 'Não: continua na camada anterior e pode ser extraído', 'Só se a imagem for privada', 'Sim, se usar alpine'], 1, 'Revogue e troque o segredo.'),
+        q('O que docker history --no-trunc pode revelar?', ['Nada sensível', 'Comandos e valores de ARG usados no build, inclusive segredos passados assim', 'Senhas do registry', 'O código-fonte'], 1, 'Nunca passe segredos por ARG.'),
+        q('Qual ferramenta escaneia imagens em busca de CVEs?', ['trivy', 'kompose', 'buildx', 'dive'], 0, 'Também docker scout e grype.'),
+        q('O que acontece quando o container passa do limite de memória?', ['Fica mais lento', 'O kernel mata o processo (OOMKilled, exit 137)', 'O Docker aumenta o limite', 'Usa swap sem limite'], 1, 'Memória é recurso incompressível.'),
+        q('E quando passa do limite de CPU?', ['É morto', 'Sofre throttling: fica mais lento, mas não morre', 'Reinicia', 'Nada'], 1, 'CPU é compressível.'),
+        q('Como fazer a JVM respeitar o limite do container ao dimensionar o heap?', ['-Xmx maior que o limite', '-XX:MaxRAMPercentage (JVM moderna lê o cgroup)', 'Desligar o GC', 'Rodar como root'], 1, 'O limite vale para heap, metaspace, threads e buffers.'),
+      ],
+    },
+    {
+      slug: 'de-docker-para-kubernetes', title: 'De Docker para Kubernetes', summary: 'Mapeando docker run para Deployment e Service, Pods, containerd e crictl, imagens no cluster e checklist.', minutes: 12,
+      content: md('de-docker-para-kubernetes'), simulator: 'pod-lifecycle',
+      quiz: [
+        q('No Pod, qual campo substitui o ENTRYPOINT da imagem?', ['args', 'command', 'entrypoint', 'exec'], 1, 'args substitui o CMD.'),
+        q('Qual objeto do Kubernetes assume o papel do -p e do DNS por nome?', ['ConfigMap', 'Service', 'Namespace', 'Node'], 1, 'Com Ingress/Gateway para tráfego externo.'),
+        q('Qual o equivalente a --restart always somado a várias réplicas e rollouts?', ['Job', 'Deployment', 'Pod avulso', 'CronJob'], 1, 'O controller mantém as réplicas.'),
+        q('Desde o Kubernetes 1.24, o que mudou em relação ao Docker nos nós?', ['Docker virou obrigatório', 'O dockershim foi removido: os nós usam containerd ou CRI-O via CRI', 'Imagens Docker deixaram de funcionar', 'Nada'], 1, 'Imagens OCI continuam funcionando.'),
+        q('Num nó com containerd, qual ferramenta lista os containers?', ['docker ps', 'crictl ps', 'kubectl top', 'runc list apenas'], 1, 'Prefira kubectl para o dia a dia.'),
+        q('Qual o imagePullPolicy padrão para uma imagem com tag :latest?', ['Never', 'Always', 'IfNotPresent', 'OnFailure'], 1, 'Tags fixas usam IfNotPresent.'),
+        q('Como o cluster autentica em um registry privado?', ['Variável DOCKER_PASSWORD', 'Secret dockerconfigjson em imagePullSecrets (ou na ServiceAccount)', 'Não é possível', 'kubectl login'], 1, 'Sem isso: ErrImagePull.'),
+        q('Como usar uma imagem local num cluster kind sem registry?', ['docker push kind', 'kind load docker-image api:dev', 'kubectl cp', 'helm install'], 1, 'minikube image load faz o mesmo.'),
+        q('Containers do mesmo Pod compartilham…', ['Nada', 'O namespace de rede (IP e localhost) e podem compartilhar volumes', 'O sistema de arquivos raiz', 'O mesmo processo'], 1, 'Base dos padrões sidecar e init container.'),
+        q('Qual item NÃO faz parte de uma imagem pronta para Kubernetes?', ['Tratar SIGTERM', 'Logs em stdout', 'Segredos embutidos na imagem', 'Escutar em 0.0.0.0'], 2, 'Segredos vêm de Secrets em tempo de execução.'),
+      ],
+    },
+  ],
+};

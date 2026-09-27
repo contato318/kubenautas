@@ -3,8 +3,8 @@
 Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
 [Dinamos](https://github.com/flaviojmendes/dinamos) (sistemas distribuídos).
 
-- **10 módulos / 50 lições** — do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições) e um **curso completo de CRDs e Operators com Kopf** (9 lições).
-- **500 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
+- **11 módulos / 60 lições** — começando pelo **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições) e um **curso completo de CRDs e Operators com Kopf** (9 lições).
+- **600 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
 - **45 simuladores** interativos (também embutidos nas lições relacionadas):
   - ⌨️ Terminal `kubectl` com cluster simulado e missões guiadas
   - ♻️ Self-healing (ReplicaSet + scheduler + nós caindo)
@@ -31,7 +31,7 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   - 🗄️ StatefulSet (ordinais, OrderedReady × Parallel, PVCs persistentes)
   - ⏰ CronJob (Allow/Forbid/Replace, backoffLimit, histórico)
   - 🏗️ Cluster Autoscaler (scale up por Pods Pending, scale down, safe-to-evict)
-- **50 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
+- **62 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
   (CrashLoopBackOff por config, OOMKilled em Java, Pods Pending, Service sem endpoints, DNS de 5 s, ImagePullBackOff, DiskPressure,
   CPU throttling, 502 no deploy, drain travado por PDB, rota não anexada ao Gateway, backend sem ReferenceGrant, hostname sem
   interseção, apiGroup errado no RBAC, subrecursos pods/log e pods/exec, ServiceAccount com privilégio excessivo e 12 casos de Helm:
@@ -40,7 +40,9 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   Terminating, Multi-Attach, Pod preso em Terminating, liveness sob carga, loop no CoreDNS, webhook fora do ar, certificados expirados,
   conntrack cheio e IPs de Pod esgotados; e 12 casos de CRDs/Operators: campos podados em silêncio, status ignorado, loop de reconcile,
   finalizer órfão, CRD apagada, RBAC do operador, réplicas sem peering, webhook de conversão, storedVersions, handler não idempotente,
-  filhos órfãos e observedGeneration).
+  filhos órfãos e observedGeneration; e 12 casos de containers/Docker: tag latest móvel, imagem gigante, segredo na imagem, app escutando
+  em localhost, SIGTERM ignorado, dados perdidos por volume no caminho errado, permissão em volume, exec format error, depends_on,
+  OOM 137 na JVM, cache de build invalidado e disco cheio).
 - Progresso salvo no navegador (localStorage) — sem backend, sem login.
 
 ## Rodando localmente
@@ -84,6 +86,8 @@ src/
   content/troubleshootingCases.ts Metadados dos casos de troubleshooting
   content/operators/*.md        Lições do módulo de CRDs e Operators (catálogo e quizzes em content/operatorsModule.ts)
   content/operatorsCases.ts     Metadados dos casos de CRDs e Operators
+  content/containers/*.md       Lições do módulo pré-requisito de Containers (catálogo e quizzes em content/containersModule.ts)
+  content/containersCases.ts    Metadados dos casos de containers e Docker
   components/simulators/helm/   Lógica dos simuladores de Helm: motor de templates, values, SemVer, sha256
   components/simulators/        Simuladores (cluster.ts = motor do kubectl)
   pages/                        Home, Trilha, Lição, Simuladores, Prova
