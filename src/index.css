@@ -18,7 +18,7 @@ body { font-family: Inter, system-ui, sans-serif; }
 .prose-k8s ol { @apply list-decimal pl-6 my-3 space-y-1 text-tactical-dim; }
 .prose-k8s strong { @apply text-tactical-text; }
 .prose-k8s a { @apply text-k8s-400 underline; }
-.prose-k8s code { @apply font-mono text-[0.85em] text-signal-amber bg-tactical-raised px-1.5 py-0.5 rounded; }
+.prose-k8s code { @apply font-mono text-[0.85em] text-signal-amber bg-tactical-raised px-1.5 py-0.5 rounded [overflow-wrap:anywhere]; }
 .prose-k8s pre { @apply my-4 overflow-x-auto rounded-lg border border-tactical-border bg-black/60 p-4; }
 .prose-k8s pre code { @apply bg-transparent p-0 text-signal-green text-sm; }
 .prose-k8s blockquote { @apply my-4 border-l-4 border-k8s-500 bg-k8s-500/10 px-4 py-2 rounded-r; }

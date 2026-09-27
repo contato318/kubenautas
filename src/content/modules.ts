@@ -1,5 +1,6 @@
 import type { Module, Question } from '../types';
 import { extraQuizzes } from './quizzesExtra';
+import { helmModule } from './helmModule';
 
 const files = import.meta.glob('./**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const md = (path: string) => {
@@ -202,6 +203,93 @@ const baseModules: Module[] = [
     ],
   },
   {
+    id: 'gateway-api',
+    title: 'Gateway API',
+    description: 'O sucessor do Ingress: papéis, HTTPRoute, listeners, TLS, rotas entre namespaces e migração.',
+    level: 'Avançado',
+    emoji: '🚪',
+    lessons: [
+      {
+        slug: 'conceitos',
+        title: 'Gateway API: conceitos e papéis',
+        summary: 'GatewayClass, Gateway, HTTPRoute e o modelo orientado a papéis.',
+        minutes: 10,
+        content: md('gateway-api/conceitos'),
+        quiz: [
+          q('Qual limitação do Ingress motivou a criação da Gateway API?', ['O Ingress não suporta HTTPS', 'Recursos avançados dependiam de annotations específicas de cada controller, sem portabilidade nem validação', 'O Ingress só funciona em nuvem', 'O Ingress não roteia por host'], 1, 'Canary, rewrite e headers viraram annotations proprietárias. A Gateway API traz tudo para campos tipados da especificação.'),
+          q('Qual recurso indica qual implementação (controller) vai atender os Gateways?', ['HTTPRoute', 'GatewayClass', 'ReferenceGrant', 'Service'], 1, 'A GatewayClass aponta para o controllerName da implementação, como IngressClass fazia.'),
+          q('No modelo de papéis, quem normalmente cria e mantém as HTTPRoutes?', ['O provedor de infraestrutura', 'O operador do cluster', 'O time da aplicação', 'O kube-scheduler'], 2, 'O time da app cuida das rotas; o operador cuida do Gateway compartilhado.'),
+          q('Onde ficam definidos listeners, portas e certificados?', ['No Gateway', 'Na HTTPRoute', 'No Service', 'Na GatewayClass'], 0, 'O Gateway representa a instância de load balancer.'),
+          q('Qual o escopo de uma GatewayClass?', ['Namespace', 'Cluster', 'Nó', 'Pod'], 1, 'Assim como IngressClass e StorageClass.'),
+          q('O que indica a condição Programmed=True em um Gateway?', ['Que alguém fez commit do YAML', 'Que o data plane foi configurado e o Gateway tem endereço', 'Que todas as rotas foram aceitas', 'Que o certificado vai expirar'], 1, 'Accepted diz que a configuração é válida; Programmed diz que ela está em vigor.'),
+          q('Qual a diferença entre os canais standard e experimental?', ['Nenhuma', 'Standard tem APIs estáveis com garantia de compatibilidade; experimental traz recursos que ainda podem mudar', 'Experimental é mais rápido', 'Standard só funciona com Istio'], 1, 'TLSRoute, TCPRoute e UDPRoute ainda estão no experimental.'),
+          q('Como uma HTTPRoute se liga a um Gateway?', ['Pelo campo spec.parentRefs', 'Pelo nome igual', 'Por uma annotation', 'Pelo mesmo namespace obrigatoriamente'], 0, 'O Gateway então decide se aceita a rota (allowedRoutes).'),
+          q('A Gateway API já vem pronta em qualquer cluster?', ['Sim, desde a 1.20', 'Não: é preciso instalar as CRDs e uma implementação', 'Só em clusters gerenciados', 'Só com Helm'], 1, 'Algumas nuvens e meshes instalam por você, mas não é parte do núcleo do Kubernetes.'),
+          q('Para que serve a GRPCRoute?', ['Converter REST em gRPC', 'Rotear chamadas gRPC por serviço e método', 'Balancear TCP puro', 'Emitir certificados'], 1, 'É a contraparte da HTTPRoute para gRPC, em GA desde a v1.1.'),
+        ],
+      },
+      {
+        slug: 'roteamento-httproute',
+        title: 'Roteamento com HTTPRoute',
+        summary: 'Matches, precedência, filtros e divisão de tráfego por peso.',
+        minutes: 14,
+        content: md('gateway-api/roteamento-httproute'),
+        simulator: 'gateway-api',
+        quiz: [
+          q('Um match PathPrefix /api casa com /apis?', ['Sim', 'Não: o prefixo compara elementos do caminho', 'Só com header', 'Só em HTTPS'], 1, '/api casa com /api e /api/v1, mas /apis é outro elemento.'),
+          q('Regras com Exact /login e PathPrefix /log. Para /login, qual vence?', ['PathPrefix /log', 'Exact /login', 'A primeira escrita', 'Nenhuma'], 1, 'Exact tem precedência sobre PathPrefix.'),
+          q('Regras PathPrefix / e PathPrefix /v2. Para /v2/pedidos, qual vence?', ['/', '/v2, o prefixo mais longo', 'A mais antiga sempre', 'As duas dividem o tráfego'], 1, 'Entre prefixos, o mais longo vence.'),
+          q('backendRefs com pesos 9 e 1. Quanto tráfego vai para o segundo?', ['1%', 'Cerca de 10%', '50%', '90%'], 1, 'O peso é proporcional à soma: 1/(9+1).'),
+          q('O que acontece com um backendRef de peso 0?', ['Recebe tudo', 'Não recebe tráfego, mas continua configurado', 'A rota é rejeitada', 'Vira espelho'], 1, 'Útil para preparar ou pausar um canary.'),
+          q('Qual filtro responde 301/302 sem chamar nenhum backend?', ['URLRewrite', 'RequestRedirect', 'RequestMirror', 'ResponseHeaderModifier'], 1, 'A regra pode nem ter backendRefs.'),
+          q('Qual filtro muda o path antes de enviar ao backend, sem o cliente perceber?', ['RequestRedirect', 'URLRewrite', 'RequestMirror', 'RequestHeaderModifier'], 1, 'Redirect avisa o cliente; rewrite é transparente.'),
+          q('O que faz o RequestMirror?', ['Duplica a resposta', 'Copia a requisição para outro backend e descarta a resposta dele', 'Faz cache', 'Divide o tráfego 50/50'], 1, 'Ótimo para testar uma versão nova com tráfego real sem afetar usuários.'),
+          q('path e headers no MESMO item de matches significam…', ['OU', 'E: as duas condições precisam casar', 'Que o header é ignorado', 'Erro de validação'], 1, 'Itens diferentes na lista de matches funcionam como OU.'),
+          q('Um backendRef aponta para um Service que não existe. O que o cliente recebe?', ['404', 'HTTP 500, e a rota fica com ResolvedRefs=False', '200 de outro backend', 'Timeout'], 1, 'A especificação exige 500 para a fatia de tráfego de backends inválidos.'),
+        ],
+      },
+      {
+        slug: 'listeners-tls-namespaces',
+        title: 'Listeners, TLS e rotas entre namespaces',
+        summary: 'Hostnames, allowedRoutes, TLS, ReferenceGrant e condições de status.',
+        minutes: 12,
+        content: md('gateway-api/listeners-tls-namespaces'),
+        simulator: 'gateway-api',
+        quiz: [
+          q('Qual o valor padrão de allowedRoutes.namespaces.from?', ['All', 'Same', 'Selector', 'None'], 1, 'Por padrão só rotas do namespace do Gateway são aceitas.'),
+          q('Uma rota de um namespace não permitido aparece com qual motivo?', ['RefNotPermitted', 'NotAllowedByListeners', 'BackendNotFound', 'Programmed'], 1, 'Condição Accepted=False com esse motivo.'),
+          q('Listener *.loja.com e rota com hostname api.pagamentos.com. O que acontece?', ['A rota é aceita', 'Accepted=False com NoMatchingListenerHostname', 'O Gateway troca o hostname', 'Vira 301'], 1, 'Não há interseção entre os hostnames.'),
+          q('Na Gateway API, o listener *.loja.com aceita a.b.loja.com?', ['Sim: o curinga é um sufixo', 'Não: só um rótulo', 'Só com Selector', 'Só em HTTP'], 0, 'Diferente do Ingress, onde o curinga cobre um único rótulo.'),
+          q('A rota em loja referencia um Service em pagamentos. Onde criar o ReferenceGrant?', ['Em loja', 'Em pagamentos, o namespace do recurso referenciado', 'Em infra', 'Em kube-system'], 1, 'Quem é dono do destino autoriza quem pode referenciá-lo.'),
+          q('Qual a diferença entre tls.mode Terminate e Passthrough?', ['Nenhuma', 'Terminate descriptografa no Gateway; Passthrough encaminha os bytes criptografados roteando pelo SNI', 'Passthrough é mais seguro sempre', 'Terminate não usa certificado'], 1, 'Passthrough usa TLSRoute, do canal experimental.'),
+          q('Como redirecionar HTTP para HTTPS?', ['Com uma annotation', 'Com uma HTTPRoute no listener HTTP usando RequestRedirect com scheme https', 'Apagando o listener HTTP', 'Com um ReferenceGrant'], 1, 'É só uma rota com filtro, sem backends.'),
+          q('Como anexar uma rota apenas ao listener "https" de um Gateway?', ['parentRefs[].sectionName: https', 'hostnames: [https]', 'Criando outro Gateway', 'Não é possível'], 0, 'sectionName seleciona o listener pelo nome.'),
+          q('Onde fica o certificado de um listener HTTPS?', ['Em um ConfigMap', 'Em um Secret kubernetes.io/tls referenciado em certificateRefs', 'Na HTTPRoute', 'No GatewayClass'], 1, 'Se o Secret estiver em outro namespace, também precisa de ReferenceGrant.'),
+          q('Backend em outro namespace sem ReferenceGrant: qual condição e motivo?', ['Accepted=False, NotAllowedByListeners', 'ResolvedRefs=False, RefNotPermitted', 'Programmed=False, Pending', 'Nenhuma: funciona'], 1, 'A rota pode estar aceita e mesmo assim não resolver o backend.'),
+        ],
+      },
+      {
+        slug: 'migrando-do-ingress',
+        title: 'Migrando do Ingress',
+        summary: 'Mapa de conceitos, ingress2gateway, estratégia sem downtime e armadilhas.',
+        minutes: 10,
+        content: md('gateway-api/migrando-do-ingress'),
+        quiz: [
+          q('Qual recurso da Gateway API equivale à IngressClass?', ['Gateway', 'GatewayClass', 'HTTPRoute', 'ReferenceGrant'], 1, ''),
+          q('A annotation de canary por peso vira o quê?', ['backendRefs[].weight', 'Um novo Gateway', 'Um filtro RequestMirror', 'Um ReferenceGrant'], 0, 'Pesos fazem parte da especificação.'),
+          q('Qual ferramenta oficial converte Ingresses em recursos da Gateway API?', ['kompose', 'ingress2gateway', 'helm convert', 'kubectl migrate'], 1, 'Ela entende annotations de controllers populares e avisa o que não tem equivalente.'),
+          q('Ingress e Gateway API podem rodar ao mesmo tempo no cluster?', ['Não', 'Sim: dá para migrar serviço a serviço', 'Só em namespaces diferentes', 'Só com Istio'], 1, 'Cada implementação tem seu próprio endereço.'),
+          q('Como testar o novo Gateway antes de mudar o DNS público?', ['Não é possível', 'curl --resolve www.loja.com:443:<IP-do-gateway> https://www.loja.com/', 'Apagando o Ingress', 'Com kubectl port-forward no etcd'], 1, 'Você força o hostname para o IP novo só naquele teste.'),
+          q('Por que reduzir o TTL do DNS antes da virada?', ['Para acelerar o TLS', 'Para poder voltar rapidamente se algo der errado', 'É exigência da Gateway API', 'Para economizar banda'], 1, 'Com TTL alto, clientes ficam presos ao endereço antigo por horas.'),
+          q('A annotation rewrite-target do ingress-nginx vira qual filtro?', ['RequestRedirect', 'URLRewrite', 'RequestMirror', 'ResponseHeaderModifier'], 1, ''),
+          q('Autenticação externa e rate limit, sem equivalente direto, costumam virar…', ['Annotations na HTTPRoute', 'Políticas da implementação (Policy Attachment)', 'ConfigMaps', 'Não são suportados'], 1, 'Ex.: SecurityPolicy e BackendTrafficPolicy no Envoy Gateway.'),
+          q('O que é a iniciativa GAMMA?', ['Um novo controller', 'O uso da Gateway API para tráfego leste-oeste em service mesh, com rotas ligadas a Services', 'Um formato de certificado', 'Uma versão do Ingress'], 1, 'Mesma HTTPRoute, dentro e fora do cluster.'),
+          q('Qual armadilha de hostname aparece na migração?', ['Hostnames viram maiúsculos', 'O curinga do Ingress cobre um rótulo; o da Gateway API é sufixo e cobre vários', 'Hostnames deixam de existir', 'Só IPs são aceitos'], 1, 'Um *.loja.com pode passar a atender mais hosts que antes.'),
+        ],
+      },
+    ],
+  },
+  {
     id: 'config',
     title: 'Configuração e Armazenamento',
     description: 'ConfigMaps, Secrets, volumes e persistência de dados.',
@@ -324,6 +412,7 @@ const baseModules: Module[] = [
         minutes: 12,
         content: md('operacao/namespaces-rbac'),
         simulator: 'rbac',
+        extraSimulators: ['rbac-lab'],
         quiz: [
           q('Qual objeto liga uma Role a um usuário em um namespace?', ['RoleRef', 'RoleBinding', 'ClusterRole', 'ServiceAccount'], 1, ''),
           q('Como negar explicitamente uma ação no RBAC?', ['Com verbs: ["deny"]', 'Não é possível: RBAC é somente permissivo', 'Com uma ClusterRole negativa', 'Com annotations'], 1, 'O que não foi concedido é negado.'),
@@ -363,6 +452,7 @@ const baseModules: Module[] = [
       },
     ],
   },
+  helmModule,
 ];
 
 /** Soma as perguntas extras (quizzesExtra.ts) ao quiz de cada lição. */

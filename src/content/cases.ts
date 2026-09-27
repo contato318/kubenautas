@@ -1,4 +1,5 @@
 import type { Question, SimulatorId } from '../types';
+import { helmCaseMeta } from './helmCases';
 
 /**
  * Estudos de caso de problemas recorrentes em Kubernetes.
@@ -188,8 +189,92 @@ const meta: Omit<CaseStudy, 'symptoms' | 'solution'>[] = [
       'Com ALLOWED DISRUPTIONS = 0, o drain tenta de novo para sempre. Mais réplicas ou um PDB compatível resolvem.',
     ),
   },
+  {
+    slug: 'gateway-rota-nao-anexada',
+    title: 'HTTPRoute criada, mas o site responde 404',
+    summary: 'Gateway Programmed, rota aplicada sem erro, Service com endpoints — e 404 para todo mundo.',
+    area: 'Gateway API',
+    severity: 'Crítica',
+    simulator: 'gateway-api',
+    diagnosis: q(
+      'Onde está o problema?',
+      ['O Service não tem endpoints', 'O Gateway não aceitou a rota: allowedRoutes padrão (Same) só aceita rotas do namespace do Gateway', 'O certificado expirou', 'O DNS aponta para o IP errado'],
+      1,
+      'A condição Accepted=False com NotAllowedByListeners mostra que a rota nunca foi anexada ao listener.',
+    ),
+  },
+  {
+    slug: 'gateway-backend-outro-namespace',
+    title: 'Checkout respondendo 500 depois da migração',
+    summary: 'Rota aceita pelo Gateway, Service saudável em outro namespace, 100% de erros 500.',
+    area: 'Gateway API',
+    severity: 'Crítica',
+    simulator: 'gateway-api',
+    diagnosis: q(
+      'Qual a causa mais provável?',
+      ['O backend em outro namespace não foi autorizado por um ReferenceGrant', 'O Gateway está sem endereço', 'A rota não tem hostname', 'O Service precisa ser do tipo LoadBalancer'],
+      0,
+      'ResolvedRefs=False com RefNotPermitted: sem ReferenceGrant, o backend é inválido e a especificação manda responder 500.',
+    ),
+  },
+  {
+    slug: 'gateway-hostname-sem-intersecao',
+    title: 'Um domínio antigo que o Gateway ignora',
+    summary: 'A rota do domínio adquirido não funciona, enquanto as outras rotas do mesmo namespace funcionam.',
+    area: 'Gateway API',
+    severity: 'Alta',
+    simulator: 'gateway-api',
+    diagnosis: q(
+      'Por que a rota não é aceita?',
+      ['O namespace não tem acesso ao Gateway', 'O hostname da rota não intersecta com o hostname de nenhum listener (*.loja.com)', 'Falta um ReferenceGrant', 'HTTPRoute não suporta domínios .com'],
+      1,
+      'NoMatchingListenerHostname: é preciso um listener (e certificado) para api.pagamentos.com.',
+    ),
+  },
+  {
+    slug: 'rbac-apigroup-errado',
+    title: 'Pipeline proibido de atualizar Deployments',
+    summary: 'A Role lista "deployments" com o verbo patch, e mesmo assim o CI recebe Forbidden.',
+    area: 'Segurança',
+    severity: 'Média',
+    simulator: 'rbac-lab',
+    diagnosis: q(
+      'O que está errado na Role?',
+      ['Falta o verbo delete', 'deployments está no apiGroup "apps", mas a regra usa apiGroups [""] (core)', 'Roles não funcionam para ServiceAccounts', 'É preciso uma ClusterRole'],
+      1,
+      'A mensagem de Forbidden diz "in API group apps". Uma regra no grupo core não concede nada sobre deployments.',
+    ),
+  },
+  {
+    slug: 'rbac-logs-exec-proibidos',
+    title: 'O suporte vê os Pods, mas não consegue ler logs',
+    summary: 'get pods funciona; kubectl logs recebe Forbidden. Alguém sugere resources: ["*"].',
+    area: 'Segurança',
+    severity: 'Média',
+    simulator: 'rbac-lab',
+    diagnosis: q(
+      'Qual a correção adequada?',
+      ['resources: ["*"]', 'Adicionar get no subrecurso pods/log', 'Dar a ClusterRole cluster-admin', 'Adicionar o verbo list em pods'],
+      1,
+      'Subrecursos têm autorização própria. Curinga daria acesso a Secrets e exec — muito além do necessário.',
+    ),
+  },
+  {
+    slug: 'rbac-serviceaccount-superpoderosa',
+    title: 'Uma aplicação invadida lendo Secrets do cluster todo',
+    summary: 'O token de uma app de imagens listou Secrets de todos os namespaces após uma invasão.',
+    area: 'Segurança',
+    severity: 'Crítica',
+    simulator: 'rbac',
+    diagnosis: q(
+      'Qual foi a falha de segurança que permitiu o vazamento?',
+      ['O etcd sem criptografia', 'A ServiceAccount da app tinha leitura de Secrets via ClusterRoleBinding, e o token estava montado no Pod', 'Falta de NetworkPolicy', 'A imagem não era distroless'],
+      1,
+      'O invasor só usou as permissões que já existiam. Menor privilégio e automountServiceAccountToken: false evitariam o estrago.',
+    ),
+  },
 ];
 
-export const cases: CaseStudy[] = meta.map((m) => ({ ...m, ...load(m.slug) }));
+export const cases: CaseStudy[] = [...meta, ...helmCaseMeta].map((m) => ({ ...m, ...load(m.slug) }));
 
 export const findCase = (slug: string) => cases.find((c) => c.slug === slug);

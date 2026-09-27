@@ -15,7 +15,18 @@ export type SimulatorId =
   | 'dns'
   | 'statefulset'
   | 'cronjob'
-  | 'cluster-autoscaler';
+  | 'cluster-autoscaler'
+  | 'gateway-api'
+  | 'rbac-lab'
+  | 'helm-release'
+  | 'helm-lint'
+  | 'helm-values'
+  | 'helm-template'
+  | 'helm-helpers'
+  | 'helm-dependencies'
+  | 'helm-hooks'
+  | 'helm-semver'
+  | 'helm-upgrade';
 
 export interface Question {
   q: string;

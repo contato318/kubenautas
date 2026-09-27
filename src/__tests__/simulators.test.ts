@@ -10,6 +10,8 @@ import { initialSts, stepSts, stsReady, type StsState } from '../components/simu
 import { initialCron, stepCron, type CronState } from '../components/simulators/CronJobSim';
 import { initialCa, stepCa, type CaState } from '../components/simulators/ClusterAutoscalerSim';
 import { simulators } from '../components/simulators/registry';
+import { buildConfig, hostMatches as gwHost, hostnamesIntersect, parseUrl, routeConditions, routeRequest } from '../components/simulators/GatewayApiSim';
+import { MISSIONS, allows, evaluate as evaluateRole, key, type RoleDraft, type Verb } from '../components/simulators/RbacLabSim';
 
 const run = <S,>(s: S, step: (s: S) => S, n: number) => Array.from({ length: n }).reduce<S>((acc) => step(acc), s);
 const pod = (id: string) => PODS.find((p) => p.id === id)!;
@@ -21,9 +23,9 @@ const check = (label: string, policies: ReturnType<typeof pol>) => {
 };
 
 describe('registro', () => {
-  it('tem 17 simuladores com ids únicos', () => {
-    expect(simulators).toHaveLength(17);
-    expect(new Set(simulators.map((s) => s.id)).size).toBe(17);
+  it('tem 28 simuladores com ids únicos', () => {
+    expect(simulators).toHaveLength(28);
+    expect(new Set(simulators.map((s) => s.id)).size).toBe(28);
   });
 });
 
@@ -256,5 +258,65 @@ describe('Cluster Autoscaler', () => {
     const withPods = blocked.nodes.filter((n) => blocked.pods.some((p) => p.node === n.name));
     expect(withPods.length).toBeGreaterThanOrEqual(1);
     expect(blocked.nodes.length).toBeGreaterThanOrEqual(withPods.length);
+  });
+});
+
+describe('Gateway API', () => {
+  const cfg = (o: Partial<Parameters<typeof buildConfig>[0]> = {}) => buildConfig({ allowedFrom: 'Selector', referenceGrant: false, canary: 10, ...o });
+  const req = (url: string, headers: Record<string, string> = {}) => routeRequest(cfg(), { ...parseUrl(url)!, method: 'GET', headers });
+  const cond = (c: ReturnType<typeof cfg>, name: string) => routeConditions(c, c.routes.find((r) => r.name === name)!);
+
+  it('curinga de hostname é sufixo (vários rótulos)', () => {
+    expect(gwHost('*.loja.com', 'a.b.loja.com')).toBe(true);
+    expect(gwHost('*.loja.com', 'loja.com')).toBe(false);
+    expect(hostnamesIntersect('*.loja.com', ['api.pagamentos.com'])).toBe(false);
+  });
+
+  it('allowedRoutes controla quem se anexa', () => {
+    expect(cond(cfg({ allowedFrom: 'Same' }), 'vitrine')[0]).toMatchObject({ status: false, reason: 'NotAllowedByListeners' });
+    expect(cond(cfg(), 'vitrine')[0].status).toBe(true);
+    expect(cond(cfg(), 'checkout')[0].reason).toBe('NotAllowedByListeners');
+    expect(cond(cfg({ allowedFrom: 'All' }), 'checkout')[0].status).toBe(true);
+    expect(cond(cfg(), 'legado')[0].reason).toBe('NoMatchingListenerHostname');
+  });
+
+  it('backend entre namespaces exige ReferenceGrant (500 sem ele)', () => {
+    expect(cond(cfg({ allowedFrom: 'All' }), 'checkout')[1]).toMatchObject({ status: false, reason: 'RefNotPermitted' });
+    const url = parseUrl('https://pay.loja.com/')!;
+    expect(routeRequest(cfg({ allowedFrom: 'All' }), { ...url, method: 'GET', headers: {} }).status).toBe(500);
+    expect(routeRequest(cfg({ allowedFrom: 'All', referenceGrant: true }), { ...url, method: 'GET', headers: {} }).status).toBe(200);
+  });
+
+  it('roteia, redireciona e divide tráfego conforme a especificação', () => {
+    expect(req('http://www.loja.com/x')).toMatchObject({ status: 301, location: 'https://www.loja.com/x' });
+    expect(req('https://www.loja.com/promo/natal')).toMatchObject({ status: 301, location: 'https://www.loja.com/ofertas/natal' });
+    expect(req('https://api.loja.com/v2/pedidos', { 'x-canary': 'true' }).split?.[0].backend).toBe('loja/api-v2:8080');
+    expect(req('https://api.loja.com/pedidos').split?.map((s) => s.percent)).toEqual([90, 10]);
+    expect(req('https://admin.loja.com/').listener?.name).toBe('admin');
+    expect(req('https://a.b.loja.com/').status).toBe(404);
+    expect(req('https://api.pagamentos.com/').listener).toBeUndefined();
+  });
+});
+
+describe('RBAC laboratório', () => {
+  const role = (pairs: [string, Verb][], groups: Record<string, string> = {}): RoleDraft => ({ grants: new Set(pairs.map(([r, v]) => key(r, v))), groups, wildcard: false });
+  const mission = (id: string) => MISSIONS.find((m) => m.id === id)!;
+
+  it('subrecursos precisam de regra própria', () => {
+    const r = role([['pods', 'get'], ['pods', 'list']]);
+    expect(allows(r, 'pods/log', 'get')).toBe(false);
+    expect(evaluateRole(r, mission('suporte')).passed).toBe(false);
+    expect(evaluateRole(role([['pods', 'get'], ['pods', 'list'], ['pods/log', 'get']]), mission('suporte'))).toMatchObject({ passed: true, excess: 0 });
+  });
+
+  it('deployments no apiGroup errado não concedem nada', () => {
+    const pairs: [string, Verb][] = [['deployments', 'get'], ['deployments', 'patch'], ['pods', 'get'], ['pods', 'list'], ['pods', 'watch']];
+    expect(evaluateRole(role(pairs), mission('ci')).passed).toBe(true);
+    expect(evaluateRole(role(pairs, { deployments: '' }), mission('ci')).passed).toBe(false);
+  });
+
+  it('curinga falha nas proibições e todas as missões têm solução mínima', () => {
+    expect(evaluateRole({ grants: new Set(), groups: {}, wildcard: true }, mission('debug')).passed).toBe(false);
+    for (const m of MISSIONS) expect(evaluateRole(role(m.must), m)).toMatchObject({ passed: true, excess: 0 });
   });
 });
