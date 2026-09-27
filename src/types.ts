@@ -5,7 +5,17 @@ export type SimulatorId =
   | 'scheduler'
   | 'hpa'
   | 'pod-lifecycle'
-  | 'terminal';
+  | 'terminal'
+  | 'network-policy'
+  | 'rbac'
+  | 'drain-pdb'
+  | 'qos'
+  | 'storage'
+  | 'ingress'
+  | 'dns'
+  | 'statefulset'
+  | 'cronjob'
+  | 'cluster-autoscaler';
 
 export interface Question {
   q: string;
@@ -21,6 +31,8 @@ export interface Lesson {
   minutes: number;
   content: string;
   simulator?: SimulatorId;
+  /** Simuladores adicionais exibidos na lição. */
+  extraSimulators?: SimulatorId[];
   quiz: Question[];
 }
 

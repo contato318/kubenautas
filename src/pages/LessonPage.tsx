@@ -5,6 +5,7 @@ import { lessonKey, useProgress } from '../hooks/useProgress';
 import Markdown from '../components/Markdown';
 import Quiz from '../components/Quiz';
 import SimulatorHost from '../components/simulators/SimulatorHost';
+import { simulators } from '../components/simulators/registry';
 import NotFoundPage from './NotFoundPage';
 
 export default function LessonPage() {
@@ -57,12 +58,12 @@ export default function LessonPage() {
           <Markdown>{lesson.content}</Markdown>
         </div>
 
-        {lesson.simulator && (
-          <section className="mt-10">
-            <div className="label mb-3">🧪 Simulador</div>
-            <SimulatorHost id={lesson.simulator} />
+        {[lesson.simulator, ...(lesson.extraSimulators ?? [])].filter((id) => id !== undefined).map((id) => (
+          <section key={id} className="mt-10">
+            <div className="label mb-3">🧪 Simulador · {simulators.find((s) => s.id === id)?.title}</div>
+            <SimulatorHost id={id} />
           </section>
-        )}
+        ))}
 
         <section className="mt-12 max-w-3xl">
           <div className="label mb-3">✅ Teste seus conhecimentos</div>

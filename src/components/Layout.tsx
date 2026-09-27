@@ -6,6 +6,7 @@ import { useProgress } from '../hooks/useProgress';
 const nav = [
   { to: '/trilha', label: 'Trilha' },
   { to: '/simuladores', label: 'Simuladores' },
+  { to: '/casos', label: 'Casos' },
   { to: '/prova', label: 'Prova final' },
 ];
 

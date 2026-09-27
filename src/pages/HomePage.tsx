@@ -4,6 +4,7 @@ import { modules, allLessons } from '../content/modules';
 import { lessonKey, useProgress } from '../hooks/useProgress';
 import { Logo } from '../components/Layout';
 import { simulators } from '../components/simulators/registry';
+import { cases } from '../content/cases';
 
 export default function HomePage() {
   const { progress } = useProgress();
@@ -23,7 +24,7 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">
           <div className="mb-6 flex items-center gap-3">
             <Logo size={44} />
-            <span className="label">// cluster online · {allLessons.length} lições · {simulators.length} simuladores</span>
+            <span className="label">// cluster online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
           </div>
           <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
             Kubernetes, <span className="text-k8s-400">na prática.</span>
@@ -91,6 +92,19 @@ export default function HomePage() {
               </Link>
             );
           })}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-16">
+        <div className="panel flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center">
+          <div>
+            <div className="label mb-1">Troubleshooting de verdade</div>
+            <h2 className="text-xl font-bold">{cases.length} estudos de caso de problemas recorrentes</h2>
+            <p className="mt-1 text-sm text-tactical-dim">CrashLoopBackOff, OOMKilled, DNS de 5 segundos, 502 no deploy, drain travado… diagnostique antes de ver a solução.</p>
+          </div>
+          <Link to="/casos" className="btn-primary px-6 py-3 text-sm">
+            Ver casos <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 

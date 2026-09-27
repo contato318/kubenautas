@@ -6,6 +6,8 @@ import LessonPage from './pages/LessonPage';
 import ExamPage from './pages/ExamPage';
 import SimulatorsPage from './pages/SimulatorsPage';
 import NotFoundPage from './pages/NotFoundPage';
+import CasesPage from './pages/CasesPage';
+import CasePage from './pages/CasePage';
 
 export default function App() {
   return (
@@ -16,6 +18,8 @@ export default function App() {
         <Route path="/aprender/:moduleId/:slug" element={<LessonPage />} />
         <Route path="/simuladores" element={<SimulatorsPage />} />
         <Route path="/simuladores/:simId" element={<SimulatorsPage />} />
+        <Route path="/casos" element={<CasesPage />} />
+        <Route path="/casos/:slug" element={<CasePage />} />
         <Route path="/prova" element={<ExamPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

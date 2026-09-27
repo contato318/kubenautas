@@ -2,11 +2,13 @@ import { Link, useParams } from 'react-router-dom';
 import { simulators } from '../components/simulators/registry';
 import SimulatorHost from '../components/simulators/SimulatorHost';
 import { allLessons } from '../content/modules';
+import { cases } from '../content/cases';
 
 export default function SimulatorsPage() {
   const { simId } = useParams();
   const active = simulators.find((s) => s.id === simId) ?? simulators[0];
-  const related = allLessons.filter(({ lesson }) => lesson.simulator === active.id);
+  const related = allLessons.filter(({ lesson }) => lesson.simulator === active.id || lesson.extraSimulators?.includes(active.id));
+  const relatedCases = cases.filter((c) => c.simulator === active.id);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -32,6 +34,17 @@ export default function SimulatorsPage() {
             <span key={lesson.slug}>
               {i > 0 && ', '}
               <Link className="text-k8s-400 underline" to={`/aprender/${module.id}/${lesson.slug}`}>{lesson.title}</Link>
+            </span>
+          ))}
+        </p>
+      )}
+      {relatedCases.length > 0 && (
+        <p className="mt-2 text-sm text-tactical-label">
+          Estudos de caso:{' '}
+          {relatedCases.map((c, i) => (
+            <span key={c.slug}>
+              {i > 0 && ', '}
+              <Link className="text-k8s-400 underline" to={`/casos/${c.slug}`}>{c.title}</Link>
             </span>
           ))}
         </p>

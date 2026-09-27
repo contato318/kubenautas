@@ -4,8 +4,8 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
 [Dinamos](https://github.com/flaviojmendes/dinamos) (sistemas distribuídos).
 
 - **6 módulos / 20 lições** — do "o que é Kubernetes" até RBAC, troubleshooting e Helm.
-- **100 perguntas** de quiz (5 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
-- **7 simuladores** interativos:
+- **200 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
+- **17 simuladores** interativos (também embutidos nas lições relacionadas):
   - ⌨️ Terminal `kubectl` com cluster simulado e missões guiadas
   - ♻️ Self-healing (ReplicaSet + scheduler + nós caindo)
   - 🚀 Rolling update (maxSurge / maxUnavailable / rollback)
@@ -13,6 +13,19 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   - 🧩 Scheduler (requests, taints, LeastAllocated x MostAllocated)
   - 📈 HPA (fórmula real, tolerância, janela de estabilização)
   - 🩺 Ciclo de vida (CrashLoopBackOff, OOMKilled, ImagePullBackOff, probes)
+  - 🛡️ NetworkPolicy (default deny, allows, namespaceSelector, DNS)
+  - 🔐 RBAC (`kubectl auth can-i`, Role × ClusterRole, bindings)
+  - 🔧 Drain e PodDisruptionBudget (evictions bloqueadas, drain travado)
+  - ⚖️ QoS e despejo (Guaranteed/Burstable/BestEffort, OOMKilled, ordem do kubelet)
+  - 💾 PV, PVC e StorageClass (bind estático, provisionamento dinâmico, WaitForFirstConsumer, reclaimPolicy)
+  - 🌐 Roteamento de Ingress (host exato × curinga, Prefix × Exact, defaultBackend)
+  - 📖 DNS e ndots (domínios de busca, consultas geradas, FQDN)
+  - 🗄️ StatefulSet (ordinais, OrderedReady × Parallel, PVCs persistentes)
+  - ⏰ CronJob (Allow/Forbid/Replace, backoffLimit, histórico)
+  - 🏗️ Cluster Autoscaler (scale up por Pods Pending, scale down, safe-to-evict)
+- **10 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
+  (CrashLoopBackOff por config, OOMKilled em Java, Pods Pending, Service sem endpoints, DNS de 5 s, ImagePullBackOff, DiskPressure,
+  CPU throttling, 502 no deploy, drain travado por PDB).
 - Progresso salvo no navegador (localStorage) — sem backend, sem login.
 
 ## Rodando localmente
@@ -47,6 +60,9 @@ kubectl port-forward svc/kubenautas 8080:80
 src/
   content/<modulo>/<licao>.md   Texto das lições (Markdown)
   content/modules.ts            Catálogo de módulos, lições e quizzes
+  content/quizzesExtra.ts       Perguntas adicionais por lição (mescladas em modules.ts)
+  content/casos/<caso>.md       Estudos de caso (o marcador <!-- solucao --> separa sintomas da solução)
+  content/cases.ts              Catálogo dos casos com a pergunta de diagnóstico
   components/simulators/        Simuladores (cluster.ts = motor do kubectl)
   pages/                        Home, Trilha, Lição, Simuladores, Prova
   hooks/useProgress.ts          Progresso em localStorage

@@ -8,6 +8,8 @@ export interface Progress {
   /** lessonKey -> ISO date when the lesson was completed */
   completed: Record<string, string>;
   examBest?: number;
+  /** slug do caso -> ISO date + se acertou o diagnóstico */
+  cases?: Record<string, { at: string; correct: boolean }>;
 }
 
 const empty: Progress = { quizzes: {}, completed: {} };
@@ -57,7 +59,14 @@ export function useProgress() {
     save({ ...state, examBest: Math.max(state.examBest ?? 0, score) });
   }, []);
 
+  const recordCase = useCallback((slug: string, correct: boolean) => {
+    const prev = state.cases?.[slug];
+    // Mantém o primeiro registro: acertar depois de ver a solução não conta
+    if (prev) return;
+    save({ ...state, cases: { ...state.cases, [slug]: { at: new Date().toISOString(), correct } } });
+  }, []);
+
   const reset = useCallback(() => save(empty), []);
 
-  return { progress, recordQuiz, recordExam, reset };
+  return { progress, recordQuiz, recordExam, recordCase, reset };
 }

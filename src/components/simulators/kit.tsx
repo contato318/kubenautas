@@ -82,3 +82,43 @@ export function Stepper({ label, value, onChange, min = 0, max = 10 }: { label: 
     </div>
   );
 }
+
+export function RangeField({ label, value, onChange, min, max, step = 1 }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step?: number }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="label">{label}</span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="accent-[#326ce5]" />
+    </label>
+  );
+}
+
+export function MetricBox({ label, value, tone = 'text-white' }: { label: string; value: ReactNode; tone?: string }) {
+  return (
+    <div className="rounded-md border border-tactical-border bg-tactical-bg p-3">
+      <div className="label">{label}</div>
+      <div className={`font-mono text-2xl ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
+export function Toggle({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
+  return (
+    <label className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${checked ? 'border-k8s-500 bg-k8s-500/10' : 'border-tactical-border hover:bg-tactical-raised'}`}>
+      <input type="checkbox" className="mt-1 accent-[#326ce5]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="flex-1">{children}</span>
+    </label>
+  );
+}
+
+export function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="label">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value as T)} className="rounded-md border border-tactical-border bg-tactical-bg px-2 py-1.5 font-mono text-sm text-tactical-text">
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}

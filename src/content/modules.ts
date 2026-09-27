@@ -1,4 +1,5 @@
 import type { Module, Question } from '../types';
+import { extraQuizzes } from './quizzesExtra';
 
 const files = import.meta.glob('./**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const md = (path: string) => {
@@ -9,7 +10,7 @@ const md = (path: string) => {
 
 const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
 
-export const modules: Module[] = [
+const baseModules: Module[] = [
   {
     id: 'fundamentos',
     title: 'Fundamentos',
@@ -133,6 +134,8 @@ export const modules: Module[] = [
         summary: 'O controlador certo para cada tipo de carga.',
         minutes: 12,
         content: md('workloads/outros-controladores'),
+        simulator: 'statefulset',
+        extraSimulators: ['cronjob'],
         quiz: [
           q('Qual controlador garante um Pod por nó?', ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'], 2, 'DaemonSets são usados para agentes de log, monitoramento, CNI.'),
           q('O que o StatefulSet oferece que o Deployment não oferece?', ['Rolling updates', 'Nomes estáveis e ordinais e um PVC por Pod', 'Escalonamento horizontal', 'Labels'], 1, 'db-0, db-1… com volumeClaimTemplates.'),
@@ -171,6 +174,7 @@ export const modules: Module[] = [
         summary: 'Roteamento HTTP por host e path, TLS e o futuro com Gateway API.',
         minutes: 10,
         content: md('rede/ingress'),
+        simulator: 'ingress',
         quiz: [
           q('Você criou um objeto Ingress, mas nada acontece. O que provavelmente falta?', ['Um Service LoadBalancer', 'Um Ingress Controller instalado', 'Um StatefulSet', 'Um PVC'], 1, 'O Ingress é só a regra; o controller a implementa.'),
           q('Onde fica o certificado TLS usado por um Ingress?', ['Em um ConfigMap', 'Em um Secret do tipo kubernetes.io/tls', 'No etcd diretamente', 'Na imagem do controller'], 1, 'O cert-manager pode criar e renovar esse Secret.'),
@@ -185,6 +189,8 @@ export const modules: Module[] = [
         summary: 'Descoberta de serviços e firewall entre Pods.',
         minutes: 12,
         content: md('rede/dns-networkpolicy'),
+        simulator: 'dns',
+        extraSimulators: ['network-policy'],
         quiz: [
           q('Qual o FQDN do Service api no namespace loja?', ['api.loja.cluster', 'api.loja.svc.cluster.local', 'loja.api.svc.local', 'svc.api.loja'], 1, '<service>.<namespace>.svc.cluster.local'),
           q('Sem nenhuma NetworkPolicy, como é o tráfego entre Pods?', ['Tudo é bloqueado', 'Tudo é permitido', 'Só dentro do mesmo namespace', 'Só entre Pods do mesmo nó'], 1, 'Por padrão o modelo de rede é plano e aberto.'),
@@ -222,6 +228,7 @@ export const modules: Module[] = [
         summary: 'Dados que sobrevivem aos Pods.',
         minutes: 12,
         content: md('config/volumes'),
+        simulator: 'storage',
         quiz: [
           q('Qual objeto representa um PEDIDO de armazenamento feito pela aplicação?', ['PersistentVolume', 'PersistentVolumeClaim', 'StorageClass', 'emptyDir'], 1, 'O PVC é ligado (bind) a um PV.'),
           q('O que faz uma StorageClass?', ['Guarda arquivos', 'Define um tipo de disco com um provisioner para criar PVs dinamicamente', 'Faz backup de volumes', 'Limita o uso de disco por namespace'], 1, 'Provisionamento dinâmico via driver CSI.'),
@@ -246,6 +253,7 @@ export const modules: Module[] = [
         minutes: 12,
         content: md('scheduling/recursos'),
         simulator: 'scheduler',
+        extraSimulators: ['qos'],
         quiz: [
           q('O scheduler usa o quê para decidir se um Pod cabe no nó?', ['Uso real de CPU', 'Requests', 'Limits', 'Número de containers'], 1, 'Somente requests contam no agendamento.'),
           q('Um container excede o limit de memória. O que acontece?', ['Ele fica mais lento', 'É morto com OOMKilled', 'O limit aumenta automaticamente', 'O Pod é movido de nó'], 1, 'Memória é incompressível.'),
@@ -276,6 +284,7 @@ export const modules: Module[] = [
         minutes: 10,
         content: md('scheduling/hpa'),
         simulator: 'hpa',
+        extraSimulators: ['cluster-autoscaler'],
         quiz: [
           q('4 réplicas a 75% de CPU, alvo 50%. Quantas réplicas o HPA deseja?', ['4', '5', '6', '8'], 2, 'ceil(4 × 75/50) = 6.'),
           q('O HPA de CPU não funciona. Qual a causa mais comum?', ['Faltam requests de CPU nos containers ou o metrics-server', 'O Deployment tem labels', 'O Service é ClusterIP', 'O namespace é default'], 0, 'A utilização é % do request.'),
@@ -290,6 +299,7 @@ export const modules: Module[] = [
         summary: 'Controlando onde os Pods rodam.',
         minutes: 12,
         content: md('scheduling/afinidade-taints'),
+        simulator: 'drain-pdb',
         quiz: [
           q('Taints ficam em quê? Tolerations ficam em quê?', ['Ambos em Pods', 'Taints em nós; tolerations em Pods', 'Taints em Pods; tolerations em nós', 'Ambos em nós'], 1, 'O nó repele; o Pod tolera.'),
           q('Uma toleration garante que o Pod vá para o nó com taint?', ['Sim', 'Não, apenas permite; use nodeAffinity para atrair', 'Só com NoExecute', 'Só em DaemonSets'], 1, ''),
@@ -313,6 +323,7 @@ export const modules: Module[] = [
         summary: 'Isolamento lógico, permissões e Pod Security.',
         minutes: 12,
         content: md('operacao/namespaces-rbac'),
+        simulator: 'rbac',
         quiz: [
           q('Qual objeto liga uma Role a um usuário em um namespace?', ['RoleRef', 'RoleBinding', 'ClusterRole', 'ServiceAccount'], 1, ''),
           q('Como negar explicitamente uma ação no RBAC?', ['Com verbs: ["deny"]', 'Não é possível: RBAC é somente permissivo', 'Com uma ClusterRole negativa', 'Com annotations'], 1, 'O que não foi concedido é negado.'),
@@ -353,6 +364,12 @@ export const modules: Module[] = [
     ],
   },
 ];
+
+/** Soma as perguntas extras (quizzesExtra.ts) ao quiz de cada lição. */
+export const modules: Module[] = baseModules.map((m) => ({
+  ...m,
+  lessons: m.lessons.map((l) => ({ ...l, quiz: [...l.quiz, ...(extraQuizzes[`${m.id}/${l.slug}`] ?? [])] })),
+}));
 
 export const allLessons = modules.flatMap((m) => m.lessons.map((l) => ({ module: m, lesson: l })));
 
