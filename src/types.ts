@@ -34,7 +34,16 @@ export type SimulatorId =
   | 'ts-node'
   | 'ts-volume'
   | 'ts-control-plane'
-  | 'ts-tools';
+  | 'ts-tools'
+  | 'op-reconcile'
+  | 'op-crd-builder'
+  | 'op-schema'
+  | 'op-status'
+  | 'op-kopf-handlers'
+  | 'op-kopf-retries'
+  | 'op-finalizers'
+  | 'op-versions'
+  | 'op-rbac';
 
 export interface Question {
   q: string;

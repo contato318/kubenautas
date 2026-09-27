@@ -35,6 +35,15 @@ import TsNodeSim from './TsNodeSim';
 import TsVolumeSim from './TsVolumeSim';
 import TsControlPlaneSim from './TsControlPlaneSim';
 import TsToolsSim from './TsToolsSim';
+import OpReconcileSim from './OpReconcileSim';
+import OpCrdBuilderSim from './OpCrdBuilderSim';
+import OpSchemaSim from './OpSchemaSim';
+import OpStatusSim from './OpStatusSim';
+import OpKopfHandlersSim from './OpKopfHandlersSim';
+import OpKopfRetriesSim from './OpKopfRetriesSim';
+import OpFinalizersSim from './OpFinalizersSim';
+import OpVersionsSim from './OpVersionsSim';
+import OpRbacSim from './OpRbacSim';
 
 const map: Record<SimulatorId, () => JSX.Element> = {
   deployment: DeploymentSim,
@@ -73,6 +82,15 @@ const map: Record<SimulatorId, () => JSX.Element> = {
   'ts-volume': TsVolumeSim,
   'ts-control-plane': TsControlPlaneSim,
   'ts-tools': TsToolsSim,
+  'op-reconcile': OpReconcileSim,
+  'op-crd-builder': OpCrdBuilderSim,
+  'op-schema': OpSchemaSim,
+  'op-status': OpStatusSim,
+  'op-kopf-handlers': OpKopfHandlersSim,
+  'op-kopf-retries': OpKopfRetriesSim,
+  'op-finalizers': OpFinalizersSim,
+  'op-versions': OpVersionsSim,
+  'op-rbac': OpRbacSim,
 };
 
 export default function SimulatorHost({ id }: { id: SimulatorId }) {
