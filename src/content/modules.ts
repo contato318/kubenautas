@@ -1,0 +1,363 @@
+import type { Module, Question } from '../types';
+
+const files = import.meta.glob('./**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const md = (path: string) => {
+  const content = files[`./${path}.md`];
+  if (!content) throw new Error(`Conteúdo não encontrado: ${path}`);
+  return content;
+};
+
+const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
+
+export const modules: Module[] = [
+  {
+    id: 'fundamentos',
+    title: 'Fundamentos',
+    description: 'O que é Kubernetes, como o cluster funciona por dentro e como conversar com ele.',
+    level: 'Básico',
+    emoji: '🧭',
+    lessons: [
+      {
+        slug: 'o-que-e-kubernetes',
+        title: 'O que é Kubernetes?',
+        summary: 'Orquestração de containers e o modelo declarativo.',
+        minutes: 8,
+        content: md('fundamentos/o-que-e-kubernetes'),
+        quiz: [
+          q('Qual é a ideia central do modelo declarativo do Kubernetes?', ['Você executa comandos em cada nó para subir containers', 'Você descreve o estado desejado e controladores reconciliam continuamente o estado atual', 'O Kubernetes compila seu código e gera imagens', 'Você define scripts que rodam uma única vez na criação do cluster'], 1, 'Controladores comparam desejado x atual em loop e agem para eliminar a diferença.'),
+          q('Um nó com uma réplica falha. O que garante que a réplica volte?', ['O container runtime reinicia a VM', 'O loop de reconciliação do controlador percebe a falta e cria outra réplica em um nó saudável', 'O etcd move o container automaticamente', 'Nada — é preciso recriar manualmente'], 1, 'Isso é self-healing: o controlador observa que há menos réplicas que o desejado.'),
+          q('O que o Kubernetes NÃO faz por padrão?', ['Balanceamento de carga entre Pods', 'Rollouts e rollbacks', 'Build do código-fonte da sua aplicação', 'Reiniciar containers que falham'], 2, 'Kubernetes não é um PaaS completo: build de imagem fica com seu pipeline de CI.'),
+          q('Qual ferramenta roda um cluster Kubernetes dentro de containers Docker, ideal para testes locais?', ['kind', 'etcdctl', 'Helm', 'kubeadm-cloud'], 0, 'kind = Kubernetes IN Docker.'),
+          q('Qual a relação do Kubernetes com containers?', ['Kubernetes substitui containers por VMs', 'Kubernetes orquestra containers usando um container runtime (ex.: containerd)', 'Kubernetes só roda containers Docker Desktop', 'Kubernetes é um container runtime'], 1, 'Ele delega a execução para um runtime compatível com CRI.'),
+        ],
+      },
+      {
+        slug: 'arquitetura',
+        title: 'Arquitetura do cluster',
+        summary: 'Control plane, worker nodes e o caminho de um kubectl apply.',
+        minutes: 12,
+        content: md('fundamentos/arquitetura'),
+        quiz: [
+          q('Qual é o único componente que acessa o etcd diretamente?', ['kube-scheduler', 'kubelet', 'kube-apiserver', 'kube-proxy'], 2, 'Todos os outros componentes falam com o API server, que é quem lê/grava no etcd.'),
+          q('Quem decide em qual nó um Pod vai rodar?', ['kubelet', 'kube-scheduler', 'kube-controller-manager', 'CoreDNS'], 1, 'O scheduler filtra e pontua nós e grava spec.nodeName. O kubelet executa.'),
+          q('Qual componente roda em cada nó e inicia os containers via CRI?', ['kube-proxy', 'etcd', 'kubelet', 'cloud-controller-manager'], 2, 'O kubelet recebe os Pods do seu nó e pede ao runtime para executá-los.'),
+          q('Por que clusters etcd de produção têm 3 ou 5 membros?', ['Para dividir os dados entre nós', 'Para ter quórum no consenso Raft tolerando falhas', 'Porque o Kubernetes exige número ímpar de workers', 'Para melhorar a velocidade de escrita'], 1, 'Com 3 membros tolera 1 falha; com 5, tolera 2, mantendo maioria.'),
+          q('Qual componente programa regras de rede para que o IP de um Service chegue aos Pods?', ['kube-proxy', 'kube-scheduler', 'containerd', 'metrics-server'], 0, 'O kube-proxy (ou um CNI com eBPF) traduz ClusterIP → IPs de Pods.'),
+        ],
+      },
+      {
+        slug: 'kubectl-e-yaml',
+        title: 'kubectl e manifestos YAML',
+        summary: 'Comandos essenciais, anatomia de um objeto, labels e selectors.',
+        minutes: 10,
+        content: md('fundamentos/kubectl-e-yaml'),
+        quiz: [
+          q('Quais são os quatro campos de nível superior de um manifesto típico?', ['name, image, ports, env', 'apiVersion, kind, metadata, spec', 'version, type, labels, containers', 'api, object, meta, status'], 1, 'status também existe, mas é preenchido pelo cluster.'),
+          q('Qual comando mostra os Events de um Pod, muito útil para debug?', ['kubectl logs', 'kubectl describe pod', 'kubectl get events --pod', 'kubectl top pod'], 1, 'describe mostra a seção Events ao final.'),
+          q('Como um Deployment sabe quais Pods pertencem a ele?', ['Pelo nome dos Pods', 'Pelo selector que casa com labels', 'Pelo IP dos Pods', 'Pelo namespace apenas'], 1, 'Labels + selectors conectam objetos no Kubernetes.'),
+          q('Qual a diferença entre spec e status?', ['spec é gerado pelo cluster; status é escrito por você', 'spec é o estado desejado; status é o estado observado', 'São sinônimos', 'status só existe em Pods'], 1, 'Controladores trabalham para aproximar status de spec.'),
+          q('Como gerar um YAML de Deployment sem criá-lo no cluster?', ['kubectl create deployment web --image=nginx --dry-run=client -o yaml', 'kubectl export deployment web', 'kubectl apply --preview', 'kubectl yaml deployment web'], 0, '--dry-run=client -o yaml imprime o objeto sem enviar ao cluster.'),
+        ],
+      },
+      {
+        slug: 'laboratorio-kubectl',
+        title: 'Laboratório: kubectl na prática',
+        summary: 'Terminal interativo com um cluster simulado e missões.',
+        minutes: 15,
+        content: md('fundamentos/terminal'),
+        simulator: 'terminal',
+        quiz: [
+          q('Qual comando escala o Deployment web para 5 réplicas?', ['kubectl resize deploy web 5', 'kubectl scale deployment web --replicas=5', 'kubectl set replicas web=5', 'kubectl apply replicas 5'], 1, 'kubectl scale altera spec.replicas.'),
+          q('Qual comando cria um Service para o Deployment web?', ['kubectl expose deployment web --port=80', 'kubectl service create web', 'kubectl open web 80', 'kubectl link deploy web'], 0, 'kubectl expose gera um Service com o selector do Deployment.'),
+          q('Você deletou um Pod de um Deployment com 3 réplicas. O que acontece?', ['O Deployment passa a ter 2 réplicas', 'Um novo Pod com outro nome é criado', 'O mesmo Pod volta com o mesmo nome e IP', 'O Deployment é deletado'], 1, 'O ReplicaSet recria um Pod novo para voltar a 3.'),
+          q('Qual flag mostra em qual nó cada Pod está?', ['--nodes', '-o wide', '--verbose', '-o nodes'], 1, '-o wide adiciona IP e NODE.'),
+          q('Como verificar o andamento de uma atualização de imagem?', ['kubectl rollout status deployment/web', 'kubectl watch update web', 'kubectl progress web', 'kubectl get updates'], 0, 'rollout status acompanha até concluir.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'workloads',
+    title: 'Workloads',
+    description: 'Pods, Deployments, rollouts e os controladores para cada tipo de carga.',
+    level: 'Básico',
+    emoji: '📦',
+    lessons: [
+      {
+        slug: 'pods',
+        title: 'Pods',
+        summary: 'A menor unidade do Kubernetes, ciclo de vida e padrões multi-container.',
+        minutes: 10,
+        content: md('workloads/pods'),
+        quiz: [
+          q('O que containers de um mesmo Pod compartilham?', ['Nada, são totalmente isolados', 'Endereço IP e podem compartilhar volumes', 'Apenas a imagem', 'O mesmo processo'], 1, 'Eles falam entre si via localhost e podem montar os mesmos volumes.'),
+          q('Por que não criar Pods "soltos" em produção?', ['Pods soltos são mais caros', 'Se morrerem, ninguém os recria', 'Não recebem IP', 'Não podem ter labels'], 1, 'Controladores como Deployment garantem a recriação.'),
+          q('Para que servem init containers?', ['Rodar em paralelo com a app para coletar logs', 'Executar tarefas antes do container principal iniciar', 'Reiniciar a app quando falha', 'Substituir a readiness probe'], 1, 'Rodam em sequência e precisam terminar com sucesso antes dos containers principais.'),
+          q('Qual restartPolicy é o padrão de um Pod?', ['Never', 'OnFailure', 'Always', 'OnSuccess'], 2, 'Always é o padrão; Jobs usam OnFailure ou Never.'),
+          q('Qual comando mostra os logs da execução ANTERIOR de um container que crashou?', ['kubectl logs pod --old', 'kubectl logs pod --previous', 'kubectl describe logs pod', 'kubectl history pod'], 1, '--previous (ou -p) mostra a instância anterior.'),
+        ],
+      },
+      {
+        slug: 'deployments',
+        title: 'ReplicaSets e Deployments',
+        summary: 'Réplicas, self-healing e escalonamento — com simulador.',
+        minutes: 10,
+        content: md('workloads/deployments'),
+        simulator: 'deployment',
+        quiz: [
+          q('Qual objeto o Deployment cria e gerencia diretamente?', ['Pods', 'ReplicaSets', 'Services', 'StatefulSets'], 1, 'Deployment → ReplicaSet → Pods.'),
+          q('Você cria manualmente um Pod com os mesmos labels do selector de um ReplicaSet que já está com o número desejado. O que acontece?', ['Nada', 'O ReplicaSet deleta um Pod para voltar ao número desejado', 'O ReplicaSet aumenta replicas', 'O Pod fica Pending'], 1, 'O ReplicaSet conta Pods pelo selector e remove o excedente.'),
+          q('O que dispara a criação de um novo ReplicaSet em um Deployment?', ['Mudar spec.replicas', 'Mudar o template dos Pods (ex.: imagem)', 'Adicionar um label ao Deployment', 'Deletar um Pod'], 1, 'Mudanças no template geram um novo pod-template-hash.'),
+          q('Por que ReplicaSets antigos ficam com 0 réplicas em vez de serem apagados?', ['Bug conhecido', 'Para permitir rollback', 'Para economizar CPU', 'Para o HPA'], 1, 'São mantidos até revisionHistoryLimit.'),
+          q('Qual campo do Deployment é imutável após a criação?', ['spec.replicas', 'spec.template', 'spec.selector', 'metadata.labels'], 2, 'O selector não pode mudar depois de criado.'),
+        ],
+      },
+      {
+        slug: 'rolling-update',
+        title: 'Rolling updates e rollback',
+        summary: 'maxSurge, maxUnavailable, estratégias e rollback — com simulador.',
+        minutes: 12,
+        content: md('workloads/rolling-update'),
+        simulator: 'rolling-update',
+        quiz: [
+          q('Com replicas: 4, maxSurge: 1 e maxUnavailable: 0, quantos Pods no máximo existem durante o rollout?', ['4', '5', '6', '8'], 1, 'maxSurge permite 1 acima do desejado.'),
+          q('Qual estratégia derruba todos os Pods antigos antes de subir os novos?', ['RollingUpdate', 'Recreate', 'BlueGreen', 'Canary'], 1, 'Recreate causa downtime, mas evita coexistência de versões.'),
+          q('A nova imagem não existe (ImagePullBackOff) e maxUnavailable: 0. O que acontece?', ['Todas as réplicas antigas são removidas', 'O rollout trava e as réplicas antigas continuam servindo', 'O Kubernetes volta automaticamente para a versão anterior', 'O Deployment é deletado'], 1, 'O rollout não progride; após progressDeadlineSeconds fica marcado como falho, mas não faz rollback automático.'),
+          q('Qual comando volta para a revisão anterior?', ['kubectl rollout undo deployment/web', 'kubectl rollback web', 'kubectl revert deploy web', 'kubectl apply --previous'], 0, 'rollout undo usa o ReplicaSet anterior.'),
+          q('O que o Deployment usa para saber se um Pod novo está disponível?', ['A liveness probe', 'A readiness probe (e minReadySeconds)', 'O tempo desde a criação apenas', 'O status do nó'], 1, 'Sem readiness, considera pronto ao iniciar o container.'),
+        ],
+      },
+      {
+        slug: 'outros-controladores',
+        title: 'StatefulSet, DaemonSet, Job e CronJob',
+        summary: 'O controlador certo para cada tipo de carga.',
+        minutes: 12,
+        content: md('workloads/outros-controladores'),
+        quiz: [
+          q('Qual controlador garante um Pod por nó?', ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'], 2, 'DaemonSets são usados para agentes de log, monitoramento, CNI.'),
+          q('O que o StatefulSet oferece que o Deployment não oferece?', ['Rolling updates', 'Nomes estáveis e ordinais e um PVC por Pod', 'Escalonamento horizontal', 'Labels'], 1, 'db-0, db-1… com volumeClaimTemplates.'),
+          q('Qual restartPolicy NÃO é permitida em Jobs?', ['Never', 'OnFailure', 'Always', 'Todas são permitidas'], 2, 'Um Job precisa terminar; Always impediria isso.'),
+          q('Em um CronJob, o que faz concurrencyPolicy: Forbid?', ['Impede que o CronJob rode', 'Não inicia uma nova execução se a anterior ainda está rodando', 'Roda execuções em paralelo', 'Mata a execução anterior'], 1, 'Replace mataria a anterior; Allow permite paralelo.'),
+          q('Deletar um StatefulSet deleta os PVCs dos Pods?', ['Sim, sempre', 'Não, por padrão os PVCs são preservados', 'Só se o volume for RWX', 'Só em namespaces default'], 1, 'Proteção de dados: PVCs de volumeClaimTemplates são mantidos.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'rede',
+    title: 'Rede',
+    description: 'Services, Ingress, Gateway API, DNS interno e NetworkPolicy.',
+    level: 'Intermediário',
+    emoji: '🌐',
+    lessons: [
+      {
+        slug: 'services',
+        title: 'Services',
+        summary: 'IP estável, descoberta e balanceamento — com simulador.',
+        minutes: 12,
+        content: md('rede/services'),
+        simulator: 'service',
+        quiz: [
+          q('Qual é o tipo padrão de Service?', ['NodePort', 'LoadBalancer', 'ClusterIP', 'ExternalName'], 2, 'ClusterIP é acessível somente dentro do cluster.'),
+          q('Um Pod falha na readiness probe. O que acontece com o Service?', ['O Service é deletado', 'O Pod é removido dos endpoints e deixa de receber tráfego', 'O Pod é reiniciado', 'Nada'], 1, 'Readiness controla a presença nos endpoints.'),
+          q('Seu Service não tem endpoints. Qual a causa mais provável?', ['O cluster está sem CPU', 'O selector não bate com os labels dos Pods (ou eles não estão Ready)', 'O Service é do tipo ClusterIP', 'Falta um Ingress'], 1, 'Confira labels e readiness.'),
+          q('O que é um Service headless?', ['Um Service sem selector', 'Um Service com clusterIP: None, cujo DNS retorna os IPs dos Pods', 'Um Service sem portas', 'Um Service externo'], 1, 'Usado por StatefulSets e balanceamento no cliente.'),
+          q('Qual a diferença entre port e targetPort?', ['São iguais', 'port é a porta do Service; targetPort é a porta do container', 'port é do nó; targetPort do Service', 'targetPort é sempre 80'], 1, 'O Service escuta em port e encaminha para targetPort nos Pods.'),
+        ],
+      },
+      {
+        slug: 'ingress',
+        title: 'Ingress e Gateway API',
+        summary: 'Roteamento HTTP por host e path, TLS e o futuro com Gateway API.',
+        minutes: 10,
+        content: md('rede/ingress'),
+        quiz: [
+          q('Você criou um objeto Ingress, mas nada acontece. O que provavelmente falta?', ['Um Service LoadBalancer', 'Um Ingress Controller instalado', 'Um StatefulSet', 'Um PVC'], 1, 'O Ingress é só a regra; o controller a implementa.'),
+          q('Onde fica o certificado TLS usado por um Ingress?', ['Em um ConfigMap', 'Em um Secret do tipo kubernetes.io/tls', 'No etcd diretamente', 'Na imagem do controller'], 1, 'O cert-manager pode criar e renovar esse Secret.'),
+          q('Na Gateway API, qual recurso normalmente é gerenciado pelo time da aplicação?', ['GatewayClass', 'Gateway', 'HTTPRoute', 'Node'], 2, 'HTTPRoute define as regras de roteamento da app.'),
+          q('Qual vantagem a Gateway API tem sobre o Ingress?', ['É mais antiga e estável', 'Recursos como split de tráfego por peso sem depender de annotations específicas', 'Não precisa de controller', 'Só funciona com TCP'], 1, 'É mais expressiva e portável.'),
+          q('pathType: Prefix com path /api casa com qual caminho?', ['Somente /api', '/api/v1/users', '/apis', '/v1/api'], 1, 'Prefix casa por segmentos: /api, /api/, /api/v1…'),
+        ],
+      },
+      {
+        slug: 'dns-networkpolicy',
+        title: 'DNS e NetworkPolicy',
+        summary: 'Descoberta de serviços e firewall entre Pods.',
+        minutes: 12,
+        content: md('rede/dns-networkpolicy'),
+        quiz: [
+          q('Qual o FQDN do Service api no namespace loja?', ['api.loja.cluster', 'api.loja.svc.cluster.local', 'loja.api.svc.local', 'svc.api.loja'], 1, '<service>.<namespace>.svc.cluster.local'),
+          q('Sem nenhuma NetworkPolicy, como é o tráfego entre Pods?', ['Tudo é bloqueado', 'Tudo é permitido', 'Só dentro do mesmo namespace', 'Só entre Pods do mesmo nó'], 1, 'Por padrão o modelo de rede é plano e aberto.'),
+          q('Uma policy com podSelector: {} e policyTypes: [Ingress] sem regras faz o quê?', ['Libera tudo', 'Bloqueia todo tráfego de entrada para os Pods do namespace', 'Bloqueia só egress', 'Não tem efeito'], 1, 'É o padrão "default deny ingress".'),
+          q('Após aplicar default-deny de egress, os Pods não resolvem nomes. Por quê?', ['CoreDNS foi deletado', 'É preciso liberar egress para o DNS (porta 53)', 'NetworkPolicy desliga o DNS', 'Falta um Ingress'], 1, 'Sempre libere UDP/TCP 53 para o kube-dns.'),
+          q('NetworkPolicy funciona com qualquer plugin de rede?', ['Sim', 'Não, o CNI precisa suportar (ex.: Calico, Cilium)', 'Só na nuvem', 'Só com kube-proxy em IPVS'], 1, 'Flannel puro, por exemplo, ignora as policies.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'config',
+    title: 'Configuração e Armazenamento',
+    description: 'ConfigMaps, Secrets, volumes e persistência de dados.',
+    level: 'Intermediário',
+    emoji: '🗄️',
+    lessons: [
+      {
+        slug: 'configmaps-secrets',
+        title: 'ConfigMaps e Secrets',
+        summary: 'Configuração fora da imagem e dados sensíveis.',
+        minutes: 10,
+        content: md('config/configmaps-secrets'),
+        quiz: [
+          q('Secrets do Kubernetes são criptografados por padrão só por estarem em base64?', ['Sim', 'Não — base64 é apenas codificação', 'Sim, com AES-256', 'Só em namespaces kube-system'], 1, 'Habilite criptografia em repouso, RBAC e use gestores externos.'),
+          q('Você alterou um ConfigMap consumido via envFrom. Quando a app vê o novo valor?', ['Imediatamente', 'Em ~1 minuto', 'Somente quando o Pod for recriado', 'Nunca'], 2, 'Variáveis de ambiente são lidas apenas na criação do container.'),
+          q('Qual campo permite escrever valores do Secret em texto puro no YAML?', ['data', 'stringData', 'plainData', 'raw'], 1, 'stringData é convertido para base64 em data.'),
+          q('Qual tipo de Secret guarda credenciais de registry para imagePullSecrets?', ['Opaque', 'kubernetes.io/tls', 'kubernetes.io/dockerconfigjson', 'kubernetes.io/basic-auth'], 2, ''),
+          q('Uma forma comum de forçar rollout quando a config muda é…', ['Deletar o namespace', 'Colocar um hash da config em uma annotation do template do Pod', 'Reiniciar o etcd', 'Mudar o selector'], 1, 'Mudar o template gera um novo ReplicaSet.'),
+        ],
+      },
+      {
+        slug: 'volumes',
+        title: 'Volumes, PV, PVC e StorageClass',
+        summary: 'Dados que sobrevivem aos Pods.',
+        minutes: 12,
+        content: md('config/volumes'),
+        quiz: [
+          q('Qual objeto representa um PEDIDO de armazenamento feito pela aplicação?', ['PersistentVolume', 'PersistentVolumeClaim', 'StorageClass', 'emptyDir'], 1, 'O PVC é ligado (bind) a um PV.'),
+          q('O que faz uma StorageClass?', ['Guarda arquivos', 'Define um tipo de disco com um provisioner para criar PVs dinamicamente', 'Faz backup de volumes', 'Limita o uso de disco por namespace'], 1, 'Provisionamento dinâmico via driver CSI.'),
+          q('Um emptyDir sobrevive a qual evento?', ['À deleção do Pod', 'Ao restart de um container dentro do Pod', 'À migração do Pod para outro nó', 'A nenhum'], 1, 'Vive enquanto o Pod existir naquele nó.'),
+          q('Qual access mode permite leitura/escrita por vários nós?', ['RWO', 'ROX', 'RWX', 'RWOP'], 2, 'Requer storage compartilhado (NFS, EFS, CephFS).'),
+          q('Com reclaimPolicy: Delete, o que acontece ao apagar o PVC?', ['O disco é preservado', 'O PV e o disco real são apagados', 'O PVC é recriado', 'O Pod reinicia'], 1, 'Use Retain para preservar dados.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'scheduling',
+    title: 'Recursos e Scheduling',
+    description: 'Requests, limits, probes, autoscaling e onde cada Pod vai parar.',
+    level: 'Avançado',
+    emoji: '⚙️',
+    lessons: [
+      {
+        slug: 'recursos',
+        title: 'Requests, limits e QoS',
+        summary: 'Como o scheduler encaixa Pods — com simulador.',
+        minutes: 12,
+        content: md('scheduling/recursos'),
+        simulator: 'scheduler',
+        quiz: [
+          q('O scheduler usa o quê para decidir se um Pod cabe no nó?', ['Uso real de CPU', 'Requests', 'Limits', 'Número de containers'], 1, 'Somente requests contam no agendamento.'),
+          q('Um container excede o limit de memória. O que acontece?', ['Ele fica mais lento', 'É morto com OOMKilled', 'O limit aumenta automaticamente', 'O Pod é movido de nó'], 1, 'Memória é incompressível.'),
+          q('Um container excede o limit de CPU. O que acontece?', ['OOMKilled', 'Throttling', 'O nó reinicia', 'Evicted'], 1, 'CPU é compressível: o processo fica lento.'),
+          q('Qual classe de QoS é despejada primeiro sob pressão de memória?', ['Guaranteed', 'Burstable', 'BestEffort', 'Critical'], 2, 'BestEffort não tem requests nem limits.'),
+          q('O que significa cpu: 500m?', ['500 MHz', '0,5 core', '500 cores', '500 MB'], 1, 'm = milicores.'),
+        ],
+      },
+      {
+        slug: 'probes',
+        title: 'Probes e ciclo de vida',
+        summary: 'Liveness, readiness, startup e encerramento gracioso — com simulador.',
+        minutes: 12,
+        content: md('scheduling/probes'),
+        simulator: 'pod-lifecycle',
+        quiz: [
+          q('O que acontece quando a livenessProbe falha repetidamente?', ['O Pod sai dos endpoints', 'O container é reiniciado', 'O Pod é movido para outro nó', 'Nada'], 1, 'Liveness → restart. Readiness → sai do tráfego.'),
+          q('Por que a liveness NÃO deve checar o banco de dados?', ['Porque é lento', 'Porque se o banco cair todas as réplicas serão reiniciadas em loop', 'Porque não é permitido', 'Porque o banco não responde HTTP'], 1, 'Isso amplifica incidentes.'),
+          q('Para uma app Java que demora 2 minutos para iniciar, o ideal é…', ['initialDelaySeconds: 300 na readiness', 'startupProbe com failureThreshold × periodSeconds suficiente', 'Remover as probes', 'Aumentar o limit de CPU'], 1, 'A startupProbe desativa as outras até a app subir.'),
+          q('Qual sinal o container recebe primeiro quando o Pod é deletado?', ['SIGKILL', 'SIGTERM', 'SIGHUP', 'SIGSTOP'], 1, 'SIGKILL vem após terminationGracePeriodSeconds.'),
+          q('Quais mecanismos de probe existem?', ['httpGet, tcpSocket, exec, grpc', 'ping, curl, ssh', 'http, dns, icmp', 'somente httpGet'], 0, ''),
+        ],
+      },
+      {
+        slug: 'hpa',
+        title: 'Autoscaling (HPA, VPA, Cluster Autoscaler)',
+        summary: 'Escalar Pods e nós automaticamente — com simulador.',
+        minutes: 10,
+        content: md('scheduling/hpa'),
+        simulator: 'hpa',
+        quiz: [
+          q('4 réplicas a 75% de CPU, alvo 50%. Quantas réplicas o HPA deseja?', ['4', '5', '6', '8'], 2, 'ceil(4 × 75/50) = 6.'),
+          q('O HPA de CPU não funciona. Qual a causa mais comum?', ['Faltam requests de CPU nos containers ou o metrics-server', 'O Deployment tem labels', 'O Service é ClusterIP', 'O namespace é default'], 0, 'A utilização é % do request.'),
+          q('O que escala o número de NÓS do cluster?', ['HPA', 'VPA', 'Cluster Autoscaler / Karpenter', 'kube-proxy'], 2, ''),
+          q('Por que o scale down do HPA é mais lento?', ['Bug', 'Janela de estabilização para evitar oscilação', 'Limitação do etcd', 'Para economizar memória'], 1, 'stabilizationWindowSeconds padrão de 300s.'),
+          q('Qual ferramenta permite escalar para zero com base em filas?', ['VPA', 'KEDA', 'kubelet', 'CoreDNS'], 1, 'KEDA estende o HPA com scalers orientados a eventos.'),
+        ],
+      },
+      {
+        slug: 'afinidade-taints',
+        title: 'Afinidade, taints e tolerations',
+        summary: 'Controlando onde os Pods rodam.',
+        minutes: 12,
+        content: md('scheduling/afinidade-taints'),
+        quiz: [
+          q('Taints ficam em quê? Tolerations ficam em quê?', ['Ambos em Pods', 'Taints em nós; tolerations em Pods', 'Taints em Pods; tolerations em nós', 'Ambos em nós'], 1, 'O nó repele; o Pod tolera.'),
+          q('Uma toleration garante que o Pod vá para o nó com taint?', ['Sim', 'Não, apenas permite; use nodeAffinity para atrair', 'Só com NoExecute', 'Só em DaemonSets'], 1, ''),
+          q('Qual efeito de taint expulsa Pods já em execução?', ['NoSchedule', 'PreferNoSchedule', 'NoExecute', 'Evict'], 2, ''),
+          q('Como espalhar réplicas entre zonas de disponibilidade?', ['nodeName', 'topologySpreadConstraints ou podAntiAffinity', 'hostNetwork', 'ResourceQuota'], 1, ''),
+          q('O que um PodDisruptionBudget protege?', ['Contra OOM', 'A disponibilidade durante interrupções voluntárias, como drain', 'Contra falhas de hardware', 'Contra deleção de namespace'], 1, 'kubectl drain respeita o PDB.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'operacao',
+    title: 'Operação e Segurança',
+    description: 'Namespaces, RBAC, troubleshooting e empacotamento com Helm.',
+    level: 'Avançado',
+    emoji: '🛡️',
+    lessons: [
+      {
+        slug: 'namespaces-rbac',
+        title: 'Namespaces e RBAC',
+        summary: 'Isolamento lógico, permissões e Pod Security.',
+        minutes: 12,
+        content: md('operacao/namespaces-rbac'),
+        quiz: [
+          q('Qual objeto liga uma Role a um usuário em um namespace?', ['RoleRef', 'RoleBinding', 'ClusterRole', 'ServiceAccount'], 1, ''),
+          q('Como negar explicitamente uma ação no RBAC?', ['Com verbs: ["deny"]', 'Não é possível: RBAC é somente permissivo', 'Com uma ClusterRole negativa', 'Com annotations'], 1, 'O que não foi concedido é negado.'),
+          q('Qual comando verifica se você pode deletar Pods?', ['kubectl auth can-i delete pods', 'kubectl rbac check delete', 'kubectl whoami --delete', 'kubectl get permissions'], 0, ''),
+          q('Qual destes recursos NÃO pertence a um namespace?', ['Pod', 'Service', 'Node', 'ConfigMap'], 2, 'Nodes, PVs e StorageClasses são de escopo de cluster.'),
+          q('O que é uma ServiceAccount?', ['Uma conta de usuário humano', 'Uma identidade para processos rodando em Pods', 'Um tipo de Secret de registry', 'Uma conta de cobrança'], 1, ''),
+        ],
+      },
+      {
+        slug: 'troubleshooting',
+        title: 'Troubleshooting',
+        summary: 'Pending, CrashLoopBackOff, ImagePullBackOff, OOMKilled e mais — com simulador.',
+        minutes: 15,
+        content: md('operacao/troubleshooting'),
+        simulator: 'pod-lifecycle',
+        quiz: [
+          q('Pod em Pending com evento "Insufficient memory". Qual ação resolve?', ['Aumentar o limit de memória', 'Reduzir requests ou adicionar capacidade ao cluster', 'Reiniciar o kubelet', 'Mudar a imagem'], 1, ''),
+          q('Status ImagePullBackOff. Causa provável?', ['Falta de CPU', 'Tag de imagem errada ou falta de imagePullSecret', 'Liveness falhando', 'Service sem selector'], 1, ''),
+          q('Exit code 137 normalmente indica…', ['Erro de sintaxe', 'SIGKILL, geralmente OOMKilled', 'Sucesso', 'Timeout de rede'], 1, '128 + 9 (SIGKILL).'),
+          q('Pod Running mas READY 0/1. O que investigar?', ['A readiness probe', 'O etcd', 'O scheduler', 'O ResourceQuota'], 0, ''),
+          q('Qual comando prepara um nó para manutenção removendo seus Pods?', ['kubectl cordon', 'kubectl drain', 'kubectl taint --remove', 'kubectl delete node'], 1, 'cordon só impede novos Pods; drain também remove os atuais.'),
+        ],
+      },
+      {
+        slug: 'helm',
+        title: 'Helm e Kustomize',
+        summary: 'Empacotar e parametrizar aplicações.',
+        minutes: 10,
+        content: md('operacao/helm'),
+        quiz: [
+          q('Como se chama uma instalação de um chart no cluster?', ['Package', 'Release', 'Bundle', 'Revision'], 1, ''),
+          q('Qual tem maior precedência nos valores do Helm?', ['values.yaml do chart', '-f values-prod.yaml', '--set', 'Chart.yaml'], 2, ''),
+          q('Qual comando renderiza os templates localmente sem instalar?', ['helm template', 'helm render', 'helm dry', 'helm show'], 0, ''),
+          q('Como o Kustomize personaliza manifestos?', ['Com Go templates', 'Com base + overlays e patches em YAML puro', 'Com scripts bash', 'Com CRDs'], 1, ''),
+          q('Qual comando kubectl aplica um diretório Kustomize?', ['kubectl apply -k', 'kubectl kustomize --apply', 'kubectl apply -h', 'kubectl patch -k'], 0, ''),
+        ],
+      },
+    ],
+  },
+];
+
+export const allLessons = modules.flatMap((m) => m.lessons.map((l) => ({ module: m, lesson: l })));
+
+export function findLesson(moduleId: string, slug: string) {
+  const idx = allLessons.findIndex((x) => x.module.id === moduleId && x.lesson.slug === slug);
+  if (idx === -1) return null;
+  return { ...allLessons[idx], prev: allLessons[idx - 1] ?? null, next: allLessons[idx + 1] ?? null };
+}

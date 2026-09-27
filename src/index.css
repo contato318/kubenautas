@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: Inter, system-ui, sans-serif; }
+
+.label { @apply font-mono text-[11px] uppercase tracking-[0.14em] text-tactical-label; }
+.panel { @apply rounded-lg border border-tactical-border bg-tactical-surface; }
+.btn { @apply inline-flex items-center gap-2 rounded-md border px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed; }
+.btn-primary { @apply btn border-k8s-500 bg-k8s-500 text-white hover:bg-k8s-600; }
+.btn-ghost { @apply btn border-tactical-line text-tactical-dim hover:bg-tactical-raised hover:text-tactical-text; }
+
+.prose-k8s h1 { @apply text-3xl font-bold mb-4 text-white; }
+.prose-k8s h2 { @apply text-xl font-semibold mt-10 mb-3 text-white border-b border-tactical-border pb-2; }
+.prose-k8s h3 { @apply text-lg font-semibold mt-6 mb-2 text-signal-cyan; }
+.prose-k8s p { @apply my-3 leading-7 text-tactical-dim; }
+.prose-k8s ul { @apply list-disc pl-6 my-3 space-y-1 text-tactical-dim; }
+.prose-k8s ol { @apply list-decimal pl-6 my-3 space-y-1 text-tactical-dim; }
+.prose-k8s strong { @apply text-tactical-text; }
+.prose-k8s a { @apply text-k8s-400 underline; }
+.prose-k8s code { @apply font-mono text-[0.85em] text-signal-amber bg-tactical-raised px-1.5 py-0.5 rounded; }
+.prose-k8s pre { @apply my-4 overflow-x-auto rounded-lg border border-tactical-border bg-black/60 p-4; }
+.prose-k8s pre code { @apply bg-transparent p-0 text-signal-green text-sm; }
+.prose-k8s blockquote { @apply my-4 border-l-4 border-k8s-500 bg-k8s-500/10 px-4 py-2 rounded-r; }
+.prose-k8s blockquote p { @apply text-tactical-text; }
+.prose-k8s table { @apply my-4 w-full text-sm border-collapse; }
+.prose-k8s th { @apply border border-tactical-border bg-tactical-raised px-3 py-2 text-left font-mono text-xs uppercase text-tactical-label; }
+.prose-k8s td { @apply border border-tactical-border px-3 py-2 text-tactical-dim; }
