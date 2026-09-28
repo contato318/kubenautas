@@ -24,10 +24,10 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">
           <div className="mb-6 flex items-center gap-3">
             <Logo size={44} />
-            <span className="label">// cluster online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
+            <span className="label">// desafios online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
           </div>
           <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
-            Kubernetes, <span className="text-k8s-400">na prática.</span>
+            Kubernetes, <span className="text-k8s-400">com a Jack Experts.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-tactical-dim">
             Uma plataforma gratuita e interativa para dominar Kubernetes: lições objetivas, simuladores onde você mata Pods e vê o cluster se curar, um terminal
