@@ -6,6 +6,7 @@ import { Logo } from '../components/Layout';
 import { simulators } from '../components/simulators/registry';
 import { cases } from '../content/cases';
 import jackExpertsLogo from '../assets/jack-experts-white.png';
+import kubenautasGiraffe from '../assets/kubenautas-giraffe.png';
 
 export default function HomePage() {
   const { progress } = useProgress();
@@ -22,44 +23,53 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 opacity-[0.15]"
           style={{ backgroundImage: 'linear-gradient(to right,#326ce5 1px,transparent 1px),linear-gradient(to bottom,#326ce5 1px,transparent 1px)', backgroundSize: '32px 32px', maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)' }}
         />
-        <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">
-          <div className="mb-6 flex items-center gap-3">
-            <Logo size={44} />
-            <span className="label">// desafios online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
-          </div>
-          <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
-            Kubernetes,{' '}
-            <span className="inline-flex items-center gap-3 align-middle text-k8s-400 md:gap-4">
-              <span>com a</span>
-              <img
-                src={jackExpertsLogo}
-                alt="Jack Experts"
-                width={3937}
-                height={1985}
-                className="h-auto w-24 md:w-32"
-              />
-              <span className="sr-only">.</span>
-            </span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg text-tactical-dim">
-            Uma plataforma gratuita e interativa para dominar Kubernetes: lições objetivas, simuladores onde você mata Pods e vê o cluster se curar, um terminal
-            <code className="mx-1 rounded bg-tactical-raised px-1.5 font-mono text-signal-amber">kubectl</code>
-            no navegador e quizzes para fixar o conteúdo.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            {nextLesson ? (
-              <Link to={`/aprender/${nextLesson.module.id}/${nextLesson.lesson.slug}`} className="btn-primary px-6 py-3 text-sm">
-                {done ? 'Continuar' : 'Começar agora'} <ArrowRight className="h-4 w-4" />
+        <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-center lg:gap-8">
+          <div>
+            <div className="mb-6 flex items-center gap-3">
+              <Logo size={44} />
+              <span className="label">// desafios online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
+            </div>
+            <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
+              Kubernetes,{' '}
+              <span className="inline-flex items-center gap-3 align-middle text-k8s-400 md:gap-4">
+                <span>com a</span>
+                <img
+                  src={jackExpertsLogo}
+                  alt="Jack Experts"
+                  width={3937}
+                  height={1985}
+                  className="h-auto w-24 md:w-32"
+                />
+                <span className="sr-only">.</span>
+              </span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg text-tactical-dim">
+              Uma plataforma gratuita e interativa para dominar Kubernetes: lições objetivas, simuladores onde você mata Pods e vê o cluster se curar, um terminal
+              <code className="mx-1 rounded bg-tactical-raised px-1.5 font-mono text-signal-amber">kubectl</code>
+              no navegador e quizzes para fixar o conteúdo.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {nextLesson ? (
+                <Link to={`/aprender/${nextLesson.module.id}/${nextLesson.lesson.slug}`} className="btn-primary px-6 py-3 text-sm">
+                  {done ? 'Continuar' : 'Começar agora'} <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <Link to="/prova" className="btn-primary px-6 py-3 text-sm">
+                  Fazer a prova final <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
+              <Link to="/simuladores/terminal" className="btn-ghost px-6 py-3 text-sm">
+                <Terminal className="h-4 w-4" /> Abrir terminal kubectl
               </Link>
-            ) : (
-              <Link to="/prova" className="btn-primary px-6 py-3 text-sm">
-                Fazer a prova final <ArrowRight className="h-4 w-4" />
-              </Link>
-            )}
-            <Link to="/simuladores/terminal" className="btn-ghost px-6 py-3 text-sm">
-              <Terminal className="h-4 w-4" /> Abrir terminal kubectl
-            </Link>
+            </div>
           </div>
+          <img
+            src={kubenautasGiraffe}
+            alt="Girafa com fones azuis usando um notebook e apresentando um cluster Kubernetes"
+            width={1254}
+            height={1254}
+            className="pointer-events-none hidden h-auto w-full max-w-md justify-self-center select-none lg:block"
+          />
         </div>
       </section>
 
