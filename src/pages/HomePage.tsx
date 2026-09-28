@@ -5,6 +5,7 @@ import { lessonKey, useProgress } from '../hooks/useProgress';
 import { Logo } from '../components/Layout';
 import { simulators } from '../components/simulators/registry';
 import { cases } from '../content/cases';
+import jackExpertsLogo from '../assets/jack-experts-white.png';
 
 export default function HomePage() {
   const { progress } = useProgress();
@@ -27,7 +28,18 @@ export default function HomePage() {
             <span className="label">// desafios online · {allLessons.length} lições · {simulators.length} simuladores · {cases.length} estudos de caso</span>
           </div>
           <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
-            Kubernetes, <span className="text-k8s-400">com a Jack Experts.</span>
+            Kubernetes,{' '}
+            <span className="inline-flex items-center gap-3 align-middle text-k8s-400 md:gap-4">
+              <span>com a</span>
+              <img
+                src={jackExpertsLogo}
+                alt="Jack Experts"
+                width={3937}
+                height={1985}
+                className="h-auto w-24 md:w-32"
+              />
+              <span className="sr-only">.</span>
+            </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-tactical-dim">
             Uma plataforma gratuita e interativa para dominar Kubernetes: lições objetivas, simuladores onde você mata Pods e vê o cluster se curar, um terminal
