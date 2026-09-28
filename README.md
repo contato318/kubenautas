@@ -3,9 +3,9 @@
 Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
 [Dinamos](https://github.com/flaviojmendes/dinamos) (sistemas distribuídos).
 
-- **12 módulos / 70 lições** — começando pelo **curso completo de Hardening em Kubernetes** (10 lições: modelo de ameaças, control plane/kubelet/etcd, RBAC, tokens, Pod Security, rede zero trust, Secrets, supply chain, runtime e resposta a incidentes), seguido do **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições) e um **curso completo de CRDs e Operators com Kopf** (9 lições).
-- **700 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
-- **55 simuladores** interativos (também embutidos nas lições relacionadas):
+- **13 módulos / 80 lições** — começando pelo **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições), um **curso completo de CRDs e Operators com Kopf** (9 lições), um **curso completo de Pentest em Kubernetes** (10 lições: metodologia e escopo, recon, acesso anônimo, enumeração, escalada de RBAC, workloads perigosos, movimento lateral, segredos, ferramentas e relatório — sempre com correção) e, por fim, um **curso completo de Hardening em Kubernetes** (10 lições: modelo de ameaças, control plane/kubelet/etcd, RBAC, tokens, Pod Security, rede zero trust, Secrets, supply chain, runtime e resposta a incidentes).
+- **800 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
+- **65 simuladores** interativos (também embutidos nas lições relacionadas):
   - ⌨️ Terminal `kubectl` com cluster simulado e missões guiadas
   - ♻️ Self-healing (ReplicaSet + scheduler + nós caindo)
   - 🚀 Rolling update (maxSurge / maxUnavailable / rollback)
@@ -33,7 +33,7 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   - 🗄️ StatefulSet (ordinais, OrderedReady × Parallel, PVCs persistentes)
   - ⏰ CronJob (Allow/Forbid/Replace, backoffLimit, histórico)
   - 🏗️ Cluster Autoscaler (scale up por Pods Pending, scale down, safe-to-evict)
-- **74 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
+- **86 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
   (CrashLoopBackOff por config, OOMKilled em Java, Pods Pending, Service sem endpoints, DNS de 5 s, ImagePullBackOff, DiskPressure,
   CPU throttling, 502 no deploy, drain travado por PDB, rota não anexada ao Gateway, backend sem ReferenceGrant, hostname sem
   interseção, apiGroup errado no RBAC, subrecursos pods/log e pods/exec, ServiceAccount com privilégio excessivo e 12 casos de Helm:
@@ -94,6 +94,8 @@ src/
   content/containersCases.ts    Metadados dos casos de containers e Docker
   content/hardening/*.md        Lições do módulo de Hardening (catálogo e quizzes em content/hardeningModule.ts)
   content/hardeningCases.ts     Metadados dos casos de hardening
+  content/pentest/*.md          Lições do módulo de Pentest (catálogo e quizzes em content/pentestModule.ts)
+  content/pentestCases.ts       Metadados dos casos de pentest (avaliações autorizadas)
   components/simulators/helm/   Lógica dos simuladores de Helm: motor de templates, values, SemVer, sha256
   components/simulators/        Simuladores (cluster.ts = motor do kubectl)
   pages/                        Home, Trilha, Lição, Simuladores, Prova

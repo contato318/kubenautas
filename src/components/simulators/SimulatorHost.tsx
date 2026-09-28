@@ -54,6 +54,16 @@ import HdSecretsSim from './HdSecretsSim';
 import HdAdmissionSim from './HdAdmissionSim';
 import HdRuntimeSim from './HdRuntimeSim';
 import HdAuditPolicySim from './HdAuditPolicySim';
+import PtScopeSim from './PtScopeSim';
+import PtReconSim from './PtReconSim';
+import PtAnonSim from './PtAnonSim';
+import PtEnumSim from './PtEnumSim';
+import PtPrivescSim from './PtPrivescSim';
+import PtWorkloadSim from './PtWorkloadSim';
+import PtLateralSim from './PtLateralSim';
+import PtLootSim from './PtLootSim';
+import PtToolsSim from './PtToolsSim';
+import PtReportSim from './PtReportSim';
 
 const map: Record<SimulatorId, () => JSX.Element> = {
   deployment: DeploymentSim,
@@ -111,6 +121,16 @@ const map: Record<SimulatorId, () => JSX.Element> = {
   'hd-admission': HdAdmissionSim,
   'hd-runtime': HdRuntimeSim,
   'hd-audit-policy': HdAuditPolicySim,
+  'pt-scope': PtScopeSim,
+  'pt-recon': PtReconSim,
+  'pt-anon': PtAnonSim,
+  'pt-enum': PtEnumSim,
+  'pt-privesc': PtPrivescSim,
+  'pt-workload': PtWorkloadSim,
+  'pt-lateral': PtLateralSim,
+  'pt-loot': PtLootSim,
+  'pt-tools': PtToolsSim,
+  'pt-report': PtReportSim,
 };
 
 export default function SimulatorHost({ id }: { id: SimulatorId }) {

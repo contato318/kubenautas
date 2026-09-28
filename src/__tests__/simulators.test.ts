@@ -23,9 +23,9 @@ const check = (label: string, policies: ReturnType<typeof pol>) => {
 };
 
 describe('registro', () => {
-  it('tem 55 simuladores com ids únicos', () => {
-    expect(simulators).toHaveLength(55);
-    expect(new Set(simulators.map((s) => s.id)).size).toBe(55);
+  it('tem 65 simuladores com ids únicos', () => {
+    expect(simulators).toHaveLength(65);
+    expect(new Set(simulators.map((s) => s.id)).size).toBe(65);
   });
 });
 

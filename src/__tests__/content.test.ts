@@ -30,7 +30,7 @@ describe('conteúdo', () => {
     const keys = new Set(allLessons.map(({ module, lesson }) => `${module.id}/${lesson.slug}`));
     for (const key of Object.keys(extraQuizzes)) expect(keys.has(key), key).toBe(true);
     const texts = allLessons.flatMap(({ lesson }) => lesson.quiz.map((q) => q.q));
-    expect(texts.length).toBe(700);
+    expect(texts.length).toBe(800);
     expect(new Set(texts).size).toBe(texts.length);
   });
 
@@ -41,9 +41,9 @@ describe('conteúdo', () => {
     }
   });
 
-  it('74 estudos de caso completos, com diagnóstico válido', () => {
-    expect(cases).toHaveLength(74);
-    expect(new Set(cases.map((c) => c.slug)).size).toBe(74);
+  it('86 estudos de caso completos, com diagnóstico válido', () => {
+    expect(cases).toHaveLength(86);
+    expect(new Set(cases.map((c) => c.slug)).size).toBe(86);
     for (const c of cases) {
       expect(c.symptoms.length, c.slug).toBeGreaterThan(300);
       expect(c.solution.length, c.slug).toBeGreaterThan(500);

@@ -15,10 +15,9 @@ import { runtimeOutcome, type Control } from '../components/simulators/HdRuntime
 import { auditLevel, POLICIES, REQUESTS } from '../components/simulators/HdAuditPolicySim';
 
 describe('módulo de hardening', () => {
-  it('é o primeiro módulo, seguido do pré-requisito de containers', () => {
-    expect(modules[0].id).toBe('hardening');
-    expect(modules[0].title).toBe('Hardening em Kubernetes');
-    expect(modules[1].id).toBe('containers');
+  it('é o último módulo da trilha', () => {
+    expect(modules[modules.length - 1].id).toBe('hardening');
+    expect(modules[modules.length - 1].title).toBe('Hardening em Kubernetes');
   });
   it('10 lições com 10 perguntas e um simulador diferente cada', () => {
     const { lessons } = hardeningModule;

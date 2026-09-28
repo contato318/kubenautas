@@ -53,7 +53,17 @@ export type SimulatorId =
   | 'hd-secrets'
   | 'hd-admission'
   | 'hd-runtime'
-  | 'hd-audit-policy';
+  | 'hd-audit-policy'
+  | 'pt-scope'
+  | 'pt-recon'
+  | 'pt-anon'
+  | 'pt-enum'
+  | 'pt-privesc'
+  | 'pt-workload'
+  | 'pt-lateral'
+  | 'pt-loot'
+  | 'pt-tools'
+  | 'pt-report';
 
 export interface Question {
   q: string;

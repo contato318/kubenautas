@@ -5,6 +5,7 @@ import { containersModule } from './containersModule';
 import { helmModule } from './helmModule';
 import { troubleshootingModule } from './troubleshootingModule';
 import { operatorsModule } from './operatorsModule';
+import { pentestModule } from './pentestModule';
 
 const files = import.meta.glob('./**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const md = (path: string) => {
@@ -16,7 +17,6 @@ const md = (path: string) => {
 const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
 
 const baseModules: Module[] = [
-  hardeningModule,
   containersModule,
   {
     id: 'fundamentos',
@@ -461,6 +461,8 @@ const baseModules: Module[] = [
   helmModule,
   troubleshootingModule,
   operatorsModule,
+  pentestModule,
+  hardeningModule,
 ];
 
 /** Soma as perguntas extras (quizzesExtra.ts) ao quiz de cada lição. */

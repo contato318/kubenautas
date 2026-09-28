@@ -4,6 +4,7 @@ import { troubleshootingCaseMeta } from './troubleshootingCases';
 import { operatorsCaseMeta } from './operatorsCases';
 import { containersCaseMeta } from './containersCases';
 import { hardeningCaseMeta } from './hardeningCases';
+import { pentestCaseMeta } from './pentestCases';
 
 /**
  * Estudos de caso de problemas recorrentes em Kubernetes.
@@ -279,6 +280,6 @@ const meta: Omit<CaseStudy, 'symptoms' | 'solution'>[] = [
   },
 ];
 
-export const cases: CaseStudy[] = [...meta, ...helmCaseMeta, ...troubleshootingCaseMeta, ...operatorsCaseMeta, ...containersCaseMeta, ...hardeningCaseMeta].map((m) => ({ ...m, ...load(m.slug) }));
+export const cases: CaseStudy[] = [...meta, ...helmCaseMeta, ...troubleshootingCaseMeta, ...operatorsCaseMeta, ...containersCaseMeta, ...hardeningCaseMeta, ...pentestCaseMeta].map((m) => ({ ...m, ...load(m.slug) }));
 
 export const findCase = (slug: string) => cases.find((c) => c.slug === slug);
