@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckCircle2, Circle, Clock, FlaskConical } from 'lucide-react';
 import { modules } from '../content/modules';
 import { lessonKey, useProgress } from '../hooks/useProgress';
+import { EXAM_SIZE } from './ExamPage';
 
 const levelColor = { Básico: 'text-signal-green border-signal-green/40', Intermediário: 'text-signal-amber border-signal-amber/40', Avançado: 'text-signal-red border-signal-red/40' };
 
@@ -56,7 +57,7 @@ export default function RoadmapPage() {
         <li className="relative">
           <span className="absolute -left-[49px] flex h-8 w-8 items-center justify-center rounded-full border border-signal-amber bg-tactical-surface text-lg">🎓</span>
           <h2 className="text-xl font-semibold">Prova final</h2>
-          <p className="text-sm text-tactical-dim">20 perguntas sorteadas de todo o conteúdo.</p>
+          <p className="text-sm text-tactical-dim">{EXAM_SIZE} perguntas sorteadas de todo o conteúdo.</p>
           <Link to="/prova" className="btn-primary mt-3">Fazer a prova</Link>
         </li>
       </ol>

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { allLessons } from '../content/modules';
+import { cases } from '../content/cases';
 import { useProgress } from '../hooks/useProgress';
 
 const nav = [
@@ -25,11 +26,30 @@ export function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
+const barColor = {
+  green: { bar: 'bg-signal-green', text: 'text-signal-green' },
+  amber: { bar: 'bg-signal-amber', text: 'text-signal-amber' },
+};
+
+function ProgressBar({ label, done, total, unit, color }: { label: string; done: number; total: number; unit: string; color: keyof typeof barColor }) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const { bar, text } = barColor[color];
+  return (
+    <div className="flex items-center gap-3" title={`${done} de ${total} ${unit}`}>
+      <span className="label w-12">{label}</span>
+      <div className="h-1.5 w-28 overflow-hidden rounded bg-tactical-raised">
+        <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={`w-9 text-right font-mono text-xs ${text}`}>{pct}%</span>
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { progress } = useProgress();
   const { pathname } = useLocation();
   const done = Object.keys(progress.completed).length;
-  const pct = Math.round((done / allLessons.length) * 100);
+  const casesDone = cases.filter((c) => progress.cases?.[c.slug]).length;
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -56,12 +76,9 @@ export default function Layout({ children }: { children: ReactNode }) {
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto hidden items-center gap-3 sm:flex" title={`${done} de ${allLessons.length} lições concluídas`}>
-            <span className="label">Progresso</span>
-            <div className="h-1.5 w-28 overflow-hidden rounded bg-tactical-raised">
-              <div className="h-full bg-signal-green transition-all" style={{ width: `${pct}%` }} />
-            </div>
-            <span className="font-mono text-xs text-signal-green">{pct}%</span>
+          <div className="ml-auto hidden flex-col gap-1 sm:flex">
+            <ProgressBar label="Curso" done={done} total={allLessons.length} unit="lições concluídas" color="green" />
+            <ProgressBar label="Casos" done={casesDone} total={cases.length} unit="casos resolvidos" color="amber" />
           </div>
         </div>
       </header>

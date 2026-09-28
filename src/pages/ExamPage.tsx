@@ -6,7 +6,7 @@ import { useProgress } from '../hooks/useProgress';
 import Quiz from '../components/Quiz';
 import type { Question } from '../types';
 
-const EXAM_SIZE = 20;
+export const EXAM_SIZE = 35;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];

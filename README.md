@@ -4,7 +4,7 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
 [Dinamos](https://github.com/flaviojmendes/dinamos) (sistemas distribuídos).
 
 - **13 módulos / 80 lições** — começando pelo **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições), um **curso completo de CRDs e Operators com Kopf** (9 lições), um **curso completo de Pentest em Kubernetes** (10 lições: metodologia e escopo, recon, acesso anônimo, enumeração, escalada de RBAC, workloads perigosos, movimento lateral, segredos, ferramentas e relatório — sempre com correção) e, por fim, um **curso completo de Hardening em Kubernetes** (10 lições: modelo de ameaças, control plane/kubelet/etcd, RBAC, tokens, Pod Security, rede zero trust, Secrets, supply chain, runtime e resposta a incidentes).
-- **800 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
+- **800 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 35 perguntas sorteadas.
 - **65 simuladores** interativos (também embutidos nas lições relacionadas):
   - ⌨️ Terminal `kubectl` com cluster simulado e missões guiadas
   - ♻️ Self-healing (ReplicaSet + scheduler + nós caindo)
