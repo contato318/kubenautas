@@ -3,9 +3,9 @@
 Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
 [Dinamos](https://github.com/flaviojmendes/dinamos) (sistemas distribuídos).
 
-- **11 módulos / 60 lições** — começando pelo **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições) e um **curso completo de CRDs e Operators com Kopf** (9 lições).
-- **600 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
-- **45 simuladores** interativos (também embutidos nas lições relacionadas):
+- **12 módulos / 70 lições** — começando pelo **curso completo de Hardening em Kubernetes** (10 lições: modelo de ameaças, control plane/kubelet/etcd, RBAC, tokens, Pod Security, rede zero trust, Secrets, supply chain, runtime e resposta a incidentes), seguido do **pré-requisito de Containers (Docker)** (10 lições: kernel, imagens, Dockerfile, builds, volumes, redes, Compose, segurança e a ponte para o Kubernetes), depois do "o que é Kubernetes" até Gateway API, RBAC, um **curso completo de Helm** (9 lições), um **curso completo de Troubleshooting** (8 lições) e um **curso completo de CRDs e Operators com Kopf** (9 lições).
+- **700 perguntas** de quiz (10 por lição, aprovação com 70%) + **prova final** com 20 perguntas sorteadas.
+- **55 simuladores** interativos (também embutidos nas lições relacionadas):
   - ⌨️ Terminal `kubectl` com cluster simulado e missões guiadas
   - ♻️ Self-healing (ReplicaSet + scheduler + nós caindo)
   - 🚀 Rolling update (maxSurge / maxUnavailable / rollback)
@@ -23,6 +23,8 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
     (DNS → Service → endpoints → NetworkPolicy → container), nó em apuros, PVC e volumes, control plane sob falha, desafio de ferramentas
   - 🧬 CRDs e Operators (um por lição): loop de reconciliação, montador de CRD, schema/pruning/CEL com editor YAML, status e observedGeneration,
     handlers do Kopf, erros e retentativas, finalizers e garbage collection, versões e conversão, RBAC/peering em produção
+  - 🛡️ Hardening (um por lição): cadeia de ataque com defesa em profundidade, auditoria CIS, risco de RBAC, tokens de ServiceAccount,
+    Pod Security Admission, zero trust com NetworkPolicy, vetores de vazamento de Secrets, políticas de imagem, runtime e política de auditoria
   - 🔧 Drain e PodDisruptionBudget (evictions bloqueadas, drain travado)
   - ⚖️ QoS e despejo (Guaranteed/Burstable/BestEffort, OOMKilled, ordem do kubelet)
   - 💾 PV, PVC e StorageClass (bind estático, provisionamento dinâmico, WaitForFirstConsumer, reclaimPolicy)
@@ -31,7 +33,7 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   - 🗄️ StatefulSet (ordinais, OrderedReady × Parallel, PVCs persistentes)
   - ⏰ CronJob (Allow/Forbid/Replace, backoffLimit, histórico)
   - 🏗️ Cluster Autoscaler (scale up por Pods Pending, scale down, safe-to-evict)
-- **62 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
+- **74 estudos de caso** de problemas recorrentes: você lê os sintomas, dá o diagnóstico e só então vê investigação, causa raiz, correção e prevenção
   (CrashLoopBackOff por config, OOMKilled em Java, Pods Pending, Service sem endpoints, DNS de 5 s, ImagePullBackOff, DiskPressure,
   CPU throttling, 502 no deploy, drain travado por PDB, rota não anexada ao Gateway, backend sem ReferenceGrant, hostname sem
   interseção, apiGroup errado no RBAC, subrecursos pods/log e pods/exec, ServiceAccount com privilégio excessivo e 12 casos de Helm:
@@ -42,7 +44,9 @@ Plataforma gratuita e interativa para aprender Kubernetes, inspirada no projeto
   finalizer órfão, CRD apagada, RBAC do operador, réplicas sem peering, webhook de conversão, storedVersions, handler não idempotente,
   filhos órfãos e observedGeneration; e 12 casos de containers/Docker: tag latest móvel, imagem gigante, segredo na imagem, app escutando
   em localhost, SIGTERM ignorado, dados perdidos por volume no caminho errado, permissão em volume, exec format error, depends_on,
-  OOM 137 na JVM, cache de build invalidado e disco cheio).
+  OOM 137 na JVM, cache de build invalidado e disco cheio; e 12 casos de hardening: Dashboard exposto, kubelet anônimo, CNI sem
+  NetworkPolicy, Pod privilegiado esquecido, token de CI vazado, escalada via create pods, backup do etcd exposto, typosquatting de
+  imagem, auditoria sem registro, exfiltração por egress, exec sem detecção e impersonate sem escopo).
 - Progresso salvo no navegador (localStorage) — sem backend, sem login.
 
 ## Rodando localmente
@@ -88,6 +92,8 @@ src/
   content/operatorsCases.ts     Metadados dos casos de CRDs e Operators
   content/containers/*.md       Lições do módulo pré-requisito de Containers (catálogo e quizzes em content/containersModule.ts)
   content/containersCases.ts    Metadados dos casos de containers e Docker
+  content/hardening/*.md        Lições do módulo de Hardening (catálogo e quizzes em content/hardeningModule.ts)
+  content/hardeningCases.ts     Metadados dos casos de hardening
   components/simulators/helm/   Lógica dos simuladores de Helm: motor de templates, values, SemVer, sha256
   components/simulators/        Simuladores (cluster.ts = motor do kubectl)
   pages/                        Home, Trilha, Lição, Simuladores, Prova

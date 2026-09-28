@@ -1,0 +1,181 @@
+import type { Module, Question } from '../types';
+
+/** Módulo de hardening em Kubernetes: 10 lições, cada uma com simulador próprio e quiz de 10 perguntas. */
+
+const files = import.meta.glob('./hardening/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const md = (slug: string) => {
+  const c = files[`./hardening/${slug}.md`];
+  if (!c) throw new Error(`Conteúdo não encontrado: hardening/${slug}`);
+  return c;
+};
+const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
+
+export const hardeningModule: Module = {
+  id: 'hardening',
+  title: 'Hardening em Kubernetes',
+  description: 'Curso completo de segurança: modelo de ameaças, control plane, RBAC, tokens, Pod Security, rede zero trust, Secrets, supply chain, runtime e resposta a incidentes.',
+  level: 'Avançado',
+  emoji: '🛡️',
+  lessons: [
+    {
+      slug: 'modelo-de-ameacas', title: 'Modelo de ameaças e defesa em profundidade', summary: 'Atacantes, 4Cs, superfície de ataque, cadeia de ataque (MITRE), referências e priorização.', minutes: 13,
+      content: md('modelo-de-ameacas'), simulator: 'hd-attack-path',
+      quiz: [
+        q('Quais são os 4Cs da segurança cloud native?', ['Cluster, Code, Compliance, Cost', 'Cloud, Cluster, Container, Code', 'CPU, Cache, Container, Code', 'Cloud, CI, CD, Code'], 1, 'Cada camada depende da segurança da camada externa.'),
+        q('Por que "defesa em profundidade"?', ['Porque um único controle bem feito basta', 'Nenhum controle é perfeito; controles independentes evitam que uma falha vire comprometimento total', 'Para passar em auditorias', 'Para reduzir custos'], 1, 'Prevenção e detecção em várias etapas.'),
+        q('Quem lê o etcd diretamente…', ['Só vê métricas', 'Tem todo o estado do cluster, incluindo Secrets — é dono do cluster', 'Não consegue nada sem RBAC', 'Só vê eventos'], 1, 'Proteja com mTLS, rede e criptografia.'),
+        q('Após um RCE numa aplicação, qual credencial o atacante costuma buscar primeiro dentro do container?', ['O kubeconfig do admin', 'O token da ServiceAccount montado no Pod', 'A senha do root do nó', 'A chave do etcd'], 1, 'Montado por padrão em /var/run/secrets/kubernetes.io/serviceaccount.'),
+        q('Por que o endpoint 169.254.169.254 é relevante em ataques a clusters na nuvem?', ['É o DNS do cluster', 'Entrega credenciais do papel IAM do nó, permitindo movimento lateral para a conta de nuvem', 'É o API server', 'É o registry'], 1, 'Bloqueie e use IMDSv2 com hop limit 1.'),
+        q('Qual framework organiza técnicas de ataque por táticas (acesso inicial, execução, escalada…)?', ['ITIL', 'MITRE ATT&CK', 'COBIT', 'SCRUM'], 1, 'Há uma matriz específica para Kubernetes baseada nele.'),
+        q('Qual ferramenta verifica o cluster contra o CIS Kubernetes Benchmark?', ['kube-bench', 'helm', 'k9s', 'kompose'], 0, 'kubescape cobre CIS, NSA e MITRE.'),
+        q('Segundo a experiência de incidentes reais, como a maioria dos ataques a clusters começa?', ['Com zero-days sofisticados no kernel', 'De forma simples: painéis/APIs expostos, tokens vazados, imagens vulneráveis', 'Por ataques físicos', 'Por bugs no etcd'], 1, 'Feche as portas óbvias primeiro.'),
+        q('O que priorizar primeiro num programa de hardening?', ['Service mesh', 'Exposição externa (API server, Dashboard, kubelet) e identidades privilegiadas', 'Cores do Grafana', 'Sandboxes gVisor em tudo'], 1, 'Depois workloads, rede e detecção.'),
+        q('Qual a diferença entre um controle de prevenção e um de detecção?', ['Nenhuma', 'Prevenção impede a ação; detecção garante que você saiba que ela aconteceu', 'Detecção é mais barata sempre', 'Prevenção só existe na nuvem'], 1, 'Você precisa dos dois.'),
+      ],
+    },
+    {
+      slug: 'control-plane-e-kubelet', title: 'Hardening do control plane, kubelet e etcd', summary: 'Autenticação, Node+RBAC, NodeRestriction, flags, exposição, kubelet 10250, etcd e nós.', minutes: 15,
+      content: md('control-plane-e-kubelet'), simulator: 'hd-cis-audit',
+      quiz: [
+        q('Qual o valor recomendado para --authorization-mode no API server?', ['AlwaysAllow', 'Node,RBAC', 'ABAC', 'Webhook,AlwaysAllow'], 1, 'Node restringe kubelets; RBAC o resto.'),
+        q('O que o admission plugin NodeRestriction impede?', ['Criar Pods', 'Que um kubelet altere outros nós ou labels protegidos, se "promovendo" para receber workloads sensíveis', 'O uso de hostPath', 'Pull de imagens'], 1, 'Contém um nó comprometido.'),
+        q('Por que certificados do grupo system:masters são perigosos?', ['Expiram rápido', 'Ignoram o RBAC e não podem ser revogados — só expiram', 'São fracos', 'Só funcionam localmente'], 1, 'Use só para emergência, guardados offline.'),
+        q('Com kubelet anonymous.enabled=true e authorization.mode=AlwaysAllow, o que um atacante que alcança a porta 10250 consegue?', ['Nada', 'Executar comandos em qualquer container do nó, sem passar pelo API server', 'Só ler métricas', 'Reiniciar o nó'], 1, 'Vetor de muitas campanhas de mineração.'),
+        q('Qual configuração desliga a porta somente leitura sem autenticação do kubelet?', ['readOnlyPort: 0', 'anonymous: false', 'port: 0', 'healthzPort: 0'], 0, 'A 10255 expõe informações de Pods sem autenticação.'),
+        q('Como o etcd deve aceitar conexões de clientes?', ['Sem autenticação na rede interna', 'Somente com TLS mútuo (--client-cert-auth=true) e apenas a partir dos API servers', 'Por senha', 'Por token do Kubernetes'], 1, 'Também peer-client-cert-auth.'),
+        q('Qual a forma recomendada de autenticar usuários humanos no API server?', ['Tokens estáticos em arquivo', 'OIDC integrado ao SSO da empresa, com MFA', 'Certificados enviados por e-mail', 'Basic auth'], 1, 'Identidades centralizadas e revogáveis.'),
+        q('Permissão RBAC em nodes/proxy equivale a…', ['Ler métricas', 'Acesso à API do kubelet, incluindo exec em Pods do nó', 'Nada relevante', 'Editar o nó'], 1, 'Trate como altamente privilegiada.'),
+        q('Por que exigir IMDSv2 com hop limit 1 em nós AWS?', ['Performance', 'Para que containers não obtenham as credenciais do papel do nó via metadata', 'Para o DNS', 'Para o kubelet funcionar'], 1, 'Combine com identidade por workload (IRSA/Pod Identity).'),
+        q('Como verificar rapidamente se o kubelet recusa acesso anônimo?', ['kubectl get nodes', 'curl -sk https://<nó>:10250/pods deve retornar 401 Unauthorized', 'ping no nó', 'kubectl top node'], 1, 'Qualquer resposta com dados é um problema grave.'),
+      ],
+    },
+    {
+      slug: 'rbac-menor-privilegio', title: 'RBAC: menor privilégio e caminhos de escalada', summary: 'Escopos, curingas, resourceNames, permissões perigosas, escalate/bind/impersonate e auditoria de acessos.', minutes: 15,
+      content: md('rbac-menor-privilegio'), simulator: 'hd-rbac-risk',
+      quiz: [
+        q('O que list em secrets retorna?', ['Só os nomes', 'O conteúdo completo de todos os Secrets do escopo', 'Apenas metadados', 'Nada sem get'], 1, 'Nunca conceda a humanos em produção.'),
+        q('Por que create pods é uma permissão de alto risco?', ['Consome CPU', 'O Pod pode montar qualquer Secret e usar qualquer ServiceAccount do namespace — e ser privilegiado sem Pod Security', 'Cria nós', 'Apaga Deployments'], 1, 'Vale também para Deployments, Jobs, CronJobs.'),
+        q('O que os verbos escalate e bind em roles permitem?', ['Ler roles', 'Criar ou vincular papéis com permissões que você não tem — equivalente a admin', 'Apagar bindings', 'Nada'], 1, 'O API server bloqueia isso para quem não tem esses verbos.'),
+        q('Qual o risco do verbo impersonate em groups?', ['Nenhum', 'Agir como qualquer grupo, inclusive system:masters', 'Apenas ler logs', 'Mudar senhas'], 1, 'kubectl --as-group=system:masters.'),
+        q('Por que evitar curingas (*) em resources?', ['São lentos', 'Incluem recursos que ainda serão criados, como CRDs futuros', 'Não funcionam', 'Exigem ClusterRole'], 1, 'Seja explícito.'),
+        q('Como restringir uma aplicação a ler apenas um ConfigMap específico?', ['Com labels', 'Com resourceNames na regra do Role', 'Com annotations', 'Não é possível'], 1, 'resourceNames: [feature-flags].'),
+        q('Uma ClusterRole vinculada por um RoleBinding concede acesso…', ['Ao cluster inteiro', 'Apenas no namespace do RoleBinding', 'A nenhum lugar', 'Só a recursos de cluster'], 1, 'Bom padrão para reutilizar papéis.'),
+        q('Qual comando lista tudo que uma ServiceAccount pode fazer num namespace?', ['kubectl describe sa api', 'kubectl auth can-i --list --as=system:serviceaccount:loja:api -n loja', 'kubectl get roles', 'kubectl top'], 1, 'Impersonação para auditoria.'),
+        q('Qual binding padrão merece revisão imediata se tiver papéis amplos?', ['system:kube-scheduler', 'system:authenticated (qualquer identidade válida)', 'system:node', 'kube-dns'], 1, 'Também system:anonymous e a SA default.'),
+        q('Permissão para patch em mutatingwebhookconfigurations é perigosa porque…', ['Apaga o cluster', 'Um webhook sob controle do atacante pode alterar todo Pod criado', 'Muda o DNS', 'É só leitura'], 1, 'Trate como cluster-admin.'),
+      ],
+    },
+    {
+      slug: 'service-accounts-e-tokens', title: 'ServiceAccounts, tokens e identidade de workloads', summary: 'Tokens legados × projetados, automount, audiência, identidade na nuvem, CI/CD e detecção.', minutes: 13,
+      content: md('service-accounts-e-tokens'), simulator: 'hd-token',
+      quiz: [
+        q('Qual a principal fraqueza de um Secret do tipo kubernetes.io/service-account-token?', ['É grande', 'O token não expira e só é revogado apagando o Secret', 'Não funciona no 1.24', 'Exige mTLS'], 1, 'Credencial eterna.'),
+        q('A que um token projetado é vinculado?', ['Ao namespace apenas', 'Ao Pod (e nó): deixa de valer quando o Pod é removido', 'Ao usuário humano', 'A nada'], 1, 'Além de ter expiração curta.'),
+        q('Como impedir que um Pod receba o token da ServiceAccount?', ['Apagando a SA', 'automountServiceAccountToken: false na SA e/ou no Pod', 'runAsNonRoot', 'readOnlyRootFilesystem'], 1, 'A maioria das aplicações não usa a API.'),
+        q('Para que serve a audience de um token projetado?', ['Definir o namespace', 'Restringir para qual serviço o token vale; o API server rejeita audiências diferentes', 'Aumentar a validade', 'Criptografar o token'], 1, 'Ex.: audience: vault.'),
+        q('Qual a forma recomendada de dar a um Pod acesso a serviços da AWS?', ['Chaves de acesso num Secret', 'IRSA ou EKS Pod Identity (credenciais temporárias via federação)', 'Usar o papel do nó', 'Variáveis no Dockerfile'], 1, 'Sem segredos de longa duração.'),
+        q('Por que não usar a ServiceAccount default para workloads?', ['É lenta', 'É compartilhada por tudo no namespace; bindings nela valem para todos os Pods', 'Não tem token', 'Não existe mais'], 1, 'Uma SA por aplicação.'),
+        q('Como um job de CI deve obter acesso ao cluster?', ['Secret de token permanente copiado no CI', 'OIDC do provedor de CI federado, ou kubectl create token com duração curta', 'Kubeconfig do admin', 'Certificado system:masters'], 1, 'Credenciais de minutos.'),
+        q('Desde qual versão o Kubernetes deixou de criar Secrets de token automaticamente para cada ServiceAccount?', ['1.18', '1.24', '1.30', '1.10'], 1, 'Versões recentes também invalidam tokens legados sem uso.'),
+        q('Como listar tokens legados existentes no cluster?', ['kubectl get sa -A', 'kubectl get secrets -A --field-selector type=kubernetes.io/service-account-token', 'kubectl get tokens', 'kubectl auth whoami'], 1, 'Inventário para removê-los.'),
+        q('Onde o token da ServiceAccount é montado por padrão?', ['/etc/kubernetes/token', '/var/run/secrets/kubernetes.io/serviceaccount/token', '/root/.kube/config', '/tmp/token'], 1, 'Junto com ca.crt e namespace.'),
+      ],
+    },
+    {
+      slug: 'pod-security', title: 'Pod Security: Standards, Admission e securityContext', summary: 'Perfis privileged/baseline/restricted, PSA (enforce/warn/audit), adoção gradual e campos do securityContext.', minutes: 15,
+      content: md('pod-security'), simulator: 'hd-pss',
+      quiz: [
+        q('Quais são os três perfis dos Pod Security Standards?', ['low, medium, high', 'privileged, baseline, restricted', 'open, closed, locked', 'dev, stage, prod'], 1, 'Aplicados por namespace pelo PSA.'),
+        q('Qual destes o perfil baseline proíbe?', ['runAsNonRoot: false', 'hostPID: true', 'Sem seccomp', 'Sem drop ALL'], 1, 'Namespaces do host permitem ver e entrar em processos do nó.'),
+        q('O que o perfil restricted exige além do baseline?', ['Imagens assinadas', 'Não-root, allowPrivilegeEscalation=false, drop ALL e seccomp RuntimeDefault/Localhost', 'NetworkPolicy', 'Limits de CPU'], 1, 'readOnlyRootFilesystem é recomendado, mas não exigido.'),
+        q('Como ativar o PSA restricted em modo bloqueante num namespace?', ['Annotation security=restricted', 'Label pod-security.kubernetes.io/enforce=restricted', 'Criar uma PodSecurityPolicy', 'Flag no kubelet'], 1, 'PodSecurityPolicy foi removida no 1.25.'),
+        q('Qual a diferença entre os modos enforce, warn e audit?', ['Nenhuma', 'enforce rejeita; warn avisa o usuário; audit registra no audit log', 'warn rejeita', 'audit bloqueia'], 1, 'Use warn e audit antes de enforce.'),
+        q('Um Deployment viola o perfil enforce do namespace. O que acontece?', ['O kubectl apply falha', 'O Deployment é criado, mas o ReplicaSet não consegue criar os Pods (FailedCreate)', 'Os Pods rodam com aviso', 'O namespace é apagado'], 1, 'enforce avalia Pods; warn/audit avaliam também templates.'),
+        q('Como descobrir quais Pods existentes violariam restricted sem aplicar nada?', ['kubectl drain', 'kubectl label --dry-run=server --overwrite ns <ns> pod-security.kubernetes.io/enforce=restricted', 'kubectl top pods', 'kubectl auth can-i'], 1, 'O servidor devolve avisos com as violações.'),
+        q('Por que fixar pod-security.kubernetes.io/enforce-version?', ['Por desempenho', 'Para que upgrades do cluster não mudem o que é aceito sem revisão', 'É obrigatório', 'Para usar PSP'], 1, 'Evita surpresas em upgrades.'),
+        q('Qual capability é considerada "quase root"?', ['NET_BIND_SERVICE', 'SYS_ADMIN', 'CHOWN', 'KILL'], 1, 'Permite mount e manipulação de namespaces.'),
+        q('Quando usar Kyverno, Gatekeeper ou ValidatingAdmissionPolicy em vez de só o PSA?', ['Nunca', 'Para regras próprias: registries permitidos, labels obrigatórios, limites, exceções finas', 'Só em clusters gerenciados', 'Para substituir RBAC'], 1, 'O PSA é propositalmente simples.'),
+      ],
+    },
+    {
+      slug: 'rede-zero-trust', title: 'Rede: segmentação e zero trust', summary: 'Default-deny, DNS, fluxos mínimos, AND × OR em seletores, metadata, egress, FQDN e mTLS.', minutes: 14,
+      content: md('rede-zero-trust'), simulator: 'hd-netpol-matrix',
+      quiz: [
+        q('Sem nenhuma NetworkPolicy, qual é o comportamento padrão?', ['Tudo bloqueado', 'Todo Pod fala com todo Pod e com a internet', 'Só o mesmo namespace', 'Só o DNS'], 1, 'Rede plana: comece com default-deny.'),
+        q('Qual policy isola todos os Pods de um namespace em ingress e egress?', ['podSelector com app=all', 'podSelector: {} com policyTypes [Ingress, Egress] e nenhuma regra', 'namespaceSelector: {}', 'ipBlock 0.0.0.0/0'], 1, 'Selecionado e sem regras = isolado.'),
+        q('Depois de um default-deny de egress, o que quase sempre precisa ser liberado?', ['SSH', 'DNS para o kube-dns (53 UDP/TCP)', 'ICMP', 'NTP'], 1, 'Senão nada resolve nomes.'),
+        q('namespaceSelector e podSelector no MESMO item de "from" significam…', ['OU', 'E (Pods com esse label naquele namespace)', 'Nada', 'Erro de sintaxe'], 1, 'Em itens separados viram OU e abrem muito mais.'),
+        q('Por que NetworkPolicy "não funciona" em alguns clusters?', ['Bug do Kubernetes', 'O CNI não implementa policies (ex.: Flannel puro) e elas são ignoradas', 'Falta de RBAC', 'Exige service mesh'], 1, 'Verifique o CNI.'),
+        q('Como bloquear o metadata da nuvem mantendo saída para a internet?', ['Bloquear o DNS', 'ipBlock 0.0.0.0/0 com except 169.254.169.254/32', 'hostNetwork', 'Desligar o kubelet'], 1, 'Complementar ao IMDSv2 com hop limit 1.'),
+        q('Por que restringir egress, e não só ingress?', ['Para economizar banda', 'Para dificultar exfiltração, download de ferramentas e varredura da rede interna', 'Exigência do CNI', 'Para o DNS funcionar'], 1, 'Controle frequentemente esquecido.'),
+        q('Como permitir saída apenas para api.stripe.com por nome?', ['NetworkPolicy padrão com host', 'Recursos do CNI (Cilium toFQDNs, Calico domains) ou egress gateway/proxy', 'Service ExternalName', 'Ingress'], 1, 'A NetworkPolicy padrão só entende IPs.'),
+        q('O que um service mesh com mTLS acrescenta?', ['Nada além de NetworkPolicy', 'Criptografia em trânsito e identidade forte para autorização entre serviços', 'Backup', 'Autoscaling'], 1, 'Autorização por identidade em vez de IP.'),
+        q('Qual label identifica o namespace em namespaceSelector sem precisar criar labels manualmente?', ['name', 'kubernetes.io/metadata.name', 'namespace', 'k8s-app'], 1, 'Adicionado automaticamente a todo namespace.'),
+      ],
+    },
+    {
+      slug: 'segredos-e-criptografia', title: 'Segredos e criptografia', summary: 'base64 não é criptografia, EncryptionConfiguration e KMS v2, acesso, env × arquivo, GitOps, rotação e backups.', minutes: 14,
+      content: md('segredos-e-criptografia'), simulator: 'hd-secrets',
+      quiz: [
+        q('Como os dados de um Secret são armazenados por padrão no etcd?', ['Criptografados com AES', 'Apenas codificados em base64, sem criptografia', 'Com hash irreversível', 'Não são armazenados'], 1, 'Habilite criptografia em repouso.'),
+        q('Na EncryptionConfiguration, qual provider é usado para gravar?', ['O último', 'O primeiro da lista', 'Todos', 'O mais forte'], 1, 'identity primeiro = sem criptografia.'),
+        q('Por que KMS v2 é preferível a aescbc?', ['É mais rápido sempre', 'A chave mestra fica num KMS externo; com aescbc a chave está num arquivo no control plane', 'aescbc não funciona', 'KMS não precisa de configuração'], 1, 'Envelope encryption.'),
+        q('Depois de habilitar a criptografia em repouso, o que fazer com os Secrets existentes?', ['Nada', 'Regravá-los (kubectl get secrets -A -o json | kubectl replace -f -)', 'Apagá-los', 'Reiniciar o etcd'], 1, 'Só gravações novas são cifradas.'),
+        q('Por que preferir Secret montado como arquivo a variável de ambiente?', ['Arquivos são mais rápidos', 'Env vaza em /proc, crash dumps, inspect e logs; arquivos têm permissões e atualizam sem reinício', 'Env não funciona', 'Arquivos são criptografados pelo kubelet'], 1, 'Exceto com subPath, arquivos atualizam.'),
+        q('Qual solução mantém no Git só uma referência ao segredo guardado num cofre externo?', ['ConfigMap', 'External Secrets Operator (ExternalSecret)', 'Helm values', 'Kustomize patches'], 1, 'Sealed Secrets e SOPS guardam o valor cifrado.'),
+        q('Quem tem permissão de criar Pods num namespace consegue ler os Secrets dele?', ['Não', 'Sim, montando-os num Pod', 'Só com get secrets', 'Só cluster-admin'], 1, 'Separe namespaces por confiança.'),
+        q('Um snapshot do etcd de um cluster SEM criptografia em repouso contém…', ['Nada sensível', 'Todos os Secrets em texto', 'Só metadados', 'Só eventos'], 1, 'Restrinja e criptografe backups.'),
+        q('Qual o nível de auditoria correto para requisições em secrets?', ['RequestResponse', 'Metadata (nunca o corpo)', 'None', 'Request'], 1, 'Senão o log vira cópia dos segredos.'),
+        q('Qual a vantagem de credenciais dinâmicas (ex.: Vault database secrets)?', ['São mais longas', 'Validade curta e únicas por instância: reduzem a janela de abuso e facilitam revogar', 'Não precisam de rede', 'Dispensam RBAC'], 1, 'Rotação automática.'),
+      ],
+    },
+    {
+      slug: 'supply-chain', title: 'Cadeia de suprimentos: imagens confiáveis', summary: 'Ameaças, scan, SBOM, proveniência, cosign, registry, admission (Kyverno/policy-controller) e charts de terceiros.', minutes: 15,
+      content: md('supply-chain'), simulator: 'hd-admission',
+      quiz: [
+        q('O que é typosquatting de imagens?', ['Erro de digitação no YAML', 'Publicar imagens maliciosas com nomes parecidos com os legítimos (ngnix × nginx)', 'Tag errada', 'Registry lento'], 1, 'Restrinja registries permitidos.'),
+        q('Para que serve um SBOM?', ['Assinar imagens', 'Listar os componentes da imagem, respondendo rápido "onde usamos a biblioteca X?"', 'Comprimir camadas', 'Rodar testes'], 1, 'Formatos SPDX e CycloneDX.'),
+        q('O que cosign sign faz?', ['Escaneia CVEs', 'Assina a imagem (por digest) para que o cluster possa verificar a origem', 'Faz push', 'Gera SBOM'], 1, 'Keyless usa a identidade OIDC do pipeline.'),
+        q('Onde a verificação de assinaturas deve ser aplicada para valer para tudo que roda no cluster?', ['No kubectl', 'No admission (Kyverno verifyImages, policy-controller, Gatekeeper+Ratify)', 'No Dockerfile', 'No DNS'], 1, 'O ponto de controle final.'),
+        q('Por que exigir imagens por digest?', ['São menores', 'Garantem que o conteúdo executado é exatamente o verificado; tags podem mudar', 'Aceleram o pull', 'Exigência do containerd'], 1, 'Kyverno pode converter tag em digest (mutateDigest).'),
+        q('Qual a forma segura de introduzir uma nova política de admission?', ['Direto em Enforce em produção', 'Primeiro em Audit, analisar relatórios, corrigir e depois Enforce', 'Só em dev', 'Sem testar'], 1, 'Evita bloquear deploys legítimos.'),
+        q('O que é proveniência (SLSA) de uma imagem?', ['O tamanho', 'Atestado de onde, como e a partir de qual commit a imagem foi construída', 'A data do pull', 'A região do registry'], 1, 'Detecta builds fora do pipeline oficial.'),
+        q('Qual política evita que uma cópia local antiga ou adulterada de uma tag seja usada?', ['imagePullPolicy: Never', 'imagePullPolicy: Always (ou uso de digests)', 'hostNetwork', 'privileged'], 1, 'Digests resolvem de forma mais forte.'),
+        q('Por que cada namespace excluído das políticas de admission é um risco?', ['Consome CPU', 'É um caminho de bypass para quem consegue criar recursos ali', 'Quebra o DNS', 'Não é risco'], 1, 'Exclua com critério e restrinja acesso.'),
+        q('Ao instalar um chart de terceiros, o que revisar?', ['Só o README', 'RBAC pedido, securityContext, imagens (versões/digests) e passar por scanners de configuração', 'Nada, se for popular', 'Apenas o nome'], 1, 'helm template + kubescape/trivy config.'),
+      ],
+    },
+    {
+      slug: 'runtime-e-deteccao', title: 'Segurança em runtime: isolamento e detecção', summary: 'seccomp, capabilities, AppArmor/SELinux, read-only, sandboxes, Falco/Tetragon e drift.', minutes: 14,
+      content: md('runtime-e-deteccao'), simulator: 'hd-runtime',
+      quiz: [
+        q('O que o seccomp faz?', ['Criptografa discos', 'Filtra syscalls que o processo pode fazer ao kernel', 'Limita CPU', 'Faz firewall'], 1, 'RuntimeDefault bloqueia chamadas raras e perigosas.'),
+        q('Como aplicar seccomp RuntimeDefault a todos os Pods por padrão?', ['Label no namespace', 'seccompDefault: true na configuração do kubelet', 'Flag no API server', 'Não é possível'], 1, 'Ou exija via Pod Security restricted.'),
+        q('Por que readOnlyRootFilesystem ajuda contra invasores?', ['Acelera o container', 'Impede gravar ferramentas, alterar binários e persistir no container', 'Esconde o container', 'Bloqueia rede'], 1, 'Monte emptyDir só onde precisa escrever.'),
+        q('Para cargas não confiáveis ou multi-tenant hostil, qual recurso isola melhor que o kernel compartilhado?', ['hostPID', 'RuntimeClass com gVisor ou Kata Containers', 'privileged', 'NodePort'], 1, 'Kernel em espaço de usuário ou micro-VM.'),
+        q('O que o Falco usa para observar o comportamento dos containers?', ['Logs da aplicação', 'Eventos e syscalls do kernel (eBPF), com contexto do Kubernetes', 'Métricas do Prometheus', 'O audit log apenas'], 1, 'E regras declarativas.'),
+        q('Qual regra do Falco indica provável comprometimento em um container distroless?', ['CPU alta', 'Terminal shell in container', 'Pod reiniciado', 'Imagem grande'], 1, 'Não deveria haver shell algum.'),
+        q('O que é "drift" em runtime?', ['Variação de latência', 'O container executar algo que não veio na imagem (binário novo)', 'Relógio desajustado', 'Mudança de nó'], 1, 'Sinal forte de invasão.'),
+        q('Qual a diferença do Tetragon em relação a ferramentas só de detecção?', ['Nenhuma', 'Pode aplicar enforcement em eBPF, como matar o processo', 'Só roda em Windows', 'É um scanner de imagens'], 1, 'Detecção e resposta no kernel.'),
+        q('No securityContext, como remover todas as capabilities e permitir escutar em portas baixas?', ['privileged: true', 'capabilities: { drop: [ALL], add: [NET_BIND_SERVICE] }', 'runAsUser: 0', 'hostNetwork: true'], 1, 'Única capability permitida no restricted.'),
+        q('O que fazer com os alertas de runtime?', ['Guardar no nó', 'Encaminhar ao SIEM/on-call e, se possível, acionar resposta automática (ex.: isolar o Pod)', 'Ignorar os de baixa prioridade', 'Enviar só por e-mail semanal'], 1, 'Detecção sem resposta não protege.'),
+      ],
+    },
+    {
+      slug: 'auditoria-e-resposta', title: 'Auditoria, conformidade e resposta a incidentes', summary: 'Níveis e ordem da audit policy, alertas, postura contínua e runbook de Pod comprometido.', minutes: 15,
+      content: md('auditoria-e-resposta'), simulator: 'hd-audit-policy',
+      quiz: [
+        q('Como as regras de uma audit policy são avaliadas?', ['Todas somadas', 'Em ordem; a primeira que casa define o nível', 'Da mais restritiva para a menos', 'Aleatoriamente'], 1, 'Regras genéricas vão no final.'),
+        q('Qual nível registra quem fez o quê, sem os corpos?', ['None', 'Metadata', 'Request', 'RequestResponse'], 1, 'Padrão seguro para a maioria dos recursos.'),
+        q('Qual o problema de uma regra "level: Metadata" sem condições no topo da política?', ['Nenhum', 'Casa com tudo, e nenhuma regra específica abaixo é avaliada', 'Desliga a auditoria', 'Duplica eventos'], 1, 'A ordem importa.'),
+        q('Por que não usar RequestResponse para tudo?', ['É proibido', 'Copia o conteúdo dos Secrets para o log e gera volume enorme', 'Não registra usuários', 'Só funciona com webhook'], 1, 'Use Metadata para secrets.'),
+        q('Qual ação merece alerta imediato em produção?', ['list pods pelo Prometheus', 'Criação de ClusterRoleBinding para cluster-admin', 'watch de endpoints pelo kube-proxy', 'GET /healthz'], 1, 'Também exec em Pods e leitura de secrets por humanos.'),
+        q('Ao conter um Pod comprometido, qual prática preserva evidências?', ['kubectl delete pod imediatamente', 'Isolar a rede com NetworkPolicy de quarentena e removê-lo do Service, mantendo-o vivo para análise', 'Reiniciar o nó', 'Escalar para zero'], 1, 'Colete dados antes de destruir.'),
+        q('Suspeita de escape para o nó. O que fazer com o nó?', ['Limpar os arquivos suspeitos', 'Cordon, drenar e substituir o nó por um novo', 'Reiniciar o kubelet', 'Nada'], 1, 'Não confie em "limpar" um host comprometido.'),
+        q('Após um incidente com um Pod comprometido, quais credenciais rotacionar?', ['Nenhuma', 'Tudo que o Pod acessava: token da SA, Secrets montados, credenciais de nuvem', 'Só a senha do Grafana', 'Só o kubeconfig do admin'], 1, 'Assuma que foram copiadas.'),
+        q('Qual ferramenta NÃO é de verificação de postura/conformidade de clusters?', ['kube-bench', 'kubescape', 'Trivy (trivy k8s)', 'kompose'], 3, 'kompose converte Compose em manifests.'),
+        q('Para que servem game days de resposta a incidentes?', ['Testar performance', 'Treinar o time a detectar e responder seguindo o runbook, antes de um incidente real', 'Comemorar entregas', 'Atualizar o cluster'], 1, 'Teste também o break-glass e seus alertas.'),
+      ],
+    },
+  ],
+};

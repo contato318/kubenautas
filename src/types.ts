@@ -43,7 +43,17 @@ export type SimulatorId =
   | 'op-kopf-retries'
   | 'op-finalizers'
   | 'op-versions'
-  | 'op-rbac';
+  | 'op-rbac'
+  | 'hd-attack-path'
+  | 'hd-cis-audit'
+  | 'hd-rbac-risk'
+  | 'hd-token'
+  | 'hd-pss'
+  | 'hd-netpol-matrix'
+  | 'hd-secrets'
+  | 'hd-admission'
+  | 'hd-runtime'
+  | 'hd-audit-policy';
 
 export interface Question {
   q: string;

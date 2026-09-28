@@ -44,6 +44,16 @@ import OpKopfRetriesSim from './OpKopfRetriesSim';
 import OpFinalizersSim from './OpFinalizersSim';
 import OpVersionsSim from './OpVersionsSim';
 import OpRbacSim from './OpRbacSim';
+import HdAttackPathSim from './HdAttackPathSim';
+import HdCisAuditSim from './HdCisAuditSim';
+import HdRbacRiskSim from './HdRbacRiskSim';
+import HdTokenSim from './HdTokenSim';
+import HdPssSim from './HdPssSim';
+import HdNetpolMatrixSim from './HdNetpolMatrixSim';
+import HdSecretsSim from './HdSecretsSim';
+import HdAdmissionSim from './HdAdmissionSim';
+import HdRuntimeSim from './HdRuntimeSim';
+import HdAuditPolicySim from './HdAuditPolicySim';
 
 const map: Record<SimulatorId, () => JSX.Element> = {
   deployment: DeploymentSim,
@@ -91,6 +101,16 @@ const map: Record<SimulatorId, () => JSX.Element> = {
   'op-finalizers': OpFinalizersSim,
   'op-versions': OpVersionsSim,
   'op-rbac': OpRbacSim,
+  'hd-attack-path': HdAttackPathSim,
+  'hd-cis-audit': HdCisAuditSim,
+  'hd-rbac-risk': HdRbacRiskSim,
+  'hd-token': HdTokenSim,
+  'hd-pss': HdPssSim,
+  'hd-netpol-matrix': HdNetpolMatrixSim,
+  'hd-secrets': HdSecretsSim,
+  'hd-admission': HdAdmissionSim,
+  'hd-runtime': HdRuntimeSim,
+  'hd-audit-policy': HdAuditPolicySim,
 };
 
 export default function SimulatorHost({ id }: { id: SimulatorId }) {

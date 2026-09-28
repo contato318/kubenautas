@@ -1,5 +1,6 @@
 import type { Module, Question } from '../types';
 import { extraQuizzes } from './quizzesExtra';
+import { hardeningModule } from './hardeningModule';
 import { containersModule } from './containersModule';
 import { helmModule } from './helmModule';
 import { troubleshootingModule } from './troubleshootingModule';
@@ -15,6 +16,7 @@ const md = (path: string) => {
 const q = (q: string, options: string[], answer: number, explanation: string): Question => ({ q, options, answer, explanation });
 
 const baseModules: Module[] = [
+  hardeningModule,
   containersModule,
   {
     id: 'fundamentos',

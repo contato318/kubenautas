@@ -6,10 +6,10 @@ import { cases } from '../content/cases';
 import { simulators } from '../components/simulators/registry';
 
 describe('módulo de containers (pré-requisito)', () => {
-  it('é o primeiro módulo da trilha', () => {
-    expect(modules[0].id).toBe('containers');
-    expect(modules[0].title).toBe('Pré-requisito: Containers (Docker)');
-    expect(modules[1].id).toBe('fundamentos');
+  it('vem logo após o módulo de hardening e antes de Fundamentos', () => {
+    expect(modules[1].id).toBe('containers');
+    expect(modules[1].title).toBe('Pré-requisito: Containers (Docker)');
+    expect(modules[2].id).toBe('fundamentos');
   });
 
   it('10 lições completas, cada uma com quiz de 10 perguntas', () => {
