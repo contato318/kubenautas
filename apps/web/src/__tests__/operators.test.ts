@@ -94,7 +94,8 @@ describe('status e observedGeneration', () => {
   });
   it('sem subrecurso, escrever status incrementa generation', () => {
     const cfg = { statusSubresource: false, writesObservedGeneration: true };
-    expect(run(cfg, 'reconcile-ok').generation).toBe(2);
+    expect(run(cfg, 'reconcile-ok').generation).toBe(1); // idempotent write
+    expect(run(cfg, 'reconcile-fail').generation).toBe(2);
   });
   it('PATCH de status no endpoint principal é ignorado com o subrecurso', () => {
     const cfg = { statusSubresource: true, writesObservedGeneration: true };
@@ -181,7 +182,7 @@ describe('versões', () => {
 describe('operator em produção', () => {
   const allPerms = new Set<Perm>(['cr-watch', 'cr-patch', 'status-patch', 'children', 'events', 'namespaces', 'crds', 'peering']);
   it('com tudo e peering: saudável', () => {
-    expect(checkOperator({ granted: allPerms, scope: 'cluster', replicas: 2, peering: 'installed' }).healthy).toBe(true);
+    expect(checkOperator({ granted: allPerms, scope: 'cluster', replicas: 2, peering: 'installed', distinctPriorities: true }).healthy).toBe(true);
   });
   it('duas réplicas sem peering duplicam', () => {
     const r = checkOperator({ granted: allPerms, scope: 'cluster', replicas: 2, peering: 'absent' });

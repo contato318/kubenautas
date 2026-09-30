@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge, Choice, EventLog, LogEntry, SimFrame, Tone, logEntry, pushLog } from './kit';
 
 /**
- * Ciclo de vida de uma release do Helm 3/4. Cada revisão é guardada num Secret
+ * Ciclo de vida de uma release do Helm 3.17. Cada revisão é guardada num Secret
  * sh.helm.release.v1.<nome>.v<N> no namespace da release.
  * - upgrade com sucesso: anterior → superseded, nova → deployed;
  * - upgrade com falha: nova → failed, a anterior continua deployed; com --atomic, o Helm faz rollback;
@@ -46,25 +46,26 @@ export function apply(s: ReleaseState, a: Action): Outcome {
   const busy = cur && cur.status.startsWith('pending');
   const next = (cur?.rev ?? 0) + 1;
 
-  if (a.type === 'install' || (a.type === 'upgrade' && a.install && !s.revisions.some((r) => r.status !== 'uninstalled'))) {
-    if (s.revisions.length) return { state: s, output: [], error: 'Error: INSTALLATION FAILED: cannot re-use a name that is still in use' };
+  if (a.type === 'install' || (a.type === 'upgrade' && a.install && (!cur || cur.status === 'uninstalled'))) {
+    if (s.revisions.length && !(a.type === 'upgrade' && a.install && cur.status === 'uninstalled')) return { state: s, output: [], error: 'Error: INSTALLATION FAILED: cannot re-use a name that is still in use' };
     if (a.fail) {
       if (a.atomic) return { state: { ...s, revisions: [] }, output: [`release "${s.name}" failed, and has been uninstalled due to atomic being set`], error: 'Error: INSTALLATION FAILED: context deadline exceeded' };
-      return { state: trim(s, [{ rev: 1, status: 'failed', chart: a.chart, description: 'Release "failed": context deadline exceeded' }]), output: [], error: 'Error: INSTALLATION FAILED: context deadline exceeded' };
+      return { state: trim(s, [...s.revisions, { rev: next, status: 'failed', chart: a.chart, description: 'Release "failed": context deadline exceeded' }]), output: [], error: 'Error: INSTALLATION FAILED: context deadline exceeded' };
     }
-    return { state: trim(s, [{ rev: 1, status: 'deployed', chart: a.chart, description: 'Install complete' }]), output: [`NAME: ${s.name}`, 'STATUS: deployed', 'REVISION: 1'] };
+    return { state: trim(s, [...s.revisions, { rev: next, status: 'deployed', chart: a.chart, description: 'Install complete' }]), output: [`NAME: ${s.name}`, 'STATUS: deployed', `REVISION: ${next}`] };
   }
 
   if (a.type === 'upgrade') {
     if (busy) return { state: s, output: [], error: 'Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress' };
-    if (!s.revisions.some((r) => r.status === 'deployed')) return { state: s, output: [], error: `Error: UPGRADE FAILED: "${s.name}" has no deployed releases` };
+    if (!s.revisions.some((r) => r.status === 'deployed') && cur?.status !== 'failed' && cur?.status !== 'superseded') return { state: s, output: [], error: `Error: UPGRADE FAILED: "${s.name}" has no deployed releases` };
     if (a.interrupt) {
       return { state: trim(s, [...s.revisions, { rev: next, status: 'pending-upgrade', chart: a.chart, description: 'Preparing upgrade' }]), output: ['^C  (o processo do helm foi interrompido: CI cancelado, timeout do job, laptop fechado…)'] };
     }
     if (a.fail) {
       const failed: Revision = { rev: next, status: 'failed', chart: a.chart, description: `Upgrade "${s.name}" failed: context deadline exceeded` };
       if (!a.atomic) return { state: trim(s, [...s.revisions, failed]), output: [], error: 'Error: UPGRADE FAILED: context deadline exceeded' };
-      const good = [...s.revisions].reverse().find((r) => r.status === 'deployed')!;
+      const good = [...s.revisions].reverse().find((r) => r.status === 'deployed' || r.status === 'superseded');
+      if (!good) return { state: trim(s, [...s.revisions, failed]), output: [], error: 'Error: UPGRADE FAILED: unable to find a previously successful release when attempting to rollback' };
       const revs = s.revisions.map((r) => (r.status === 'deployed' ? { ...r, status: 'superseded' as Status } : r));
       return {
         state: trim(s, [...revs, failed, { rev: next + 1, status: 'deployed', chart: good.chart, description: `Rollback to ${good.rev}` }]),
@@ -72,13 +73,14 @@ export function apply(s: ReleaseState, a: Action): Outcome {
         error: `Error: UPGRADE FAILED: release ${s.name} failed, and has been rolled back due to atomic being set: context deadline exceeded`,
       };
     }
-    const revs = s.revisions.map((r) => (r.status === 'deployed' ? { ...r, status: 'superseded' as Status } : r));
+    const original = [...s.revisions].reverse().find((r) => r.status === 'deployed') ?? cur;
+    const revs = s.revisions.map((r) => (r === original ? { ...r, status: 'superseded' as Status } : r));
     return { state: trim(s, [...revs, { rev: next, status: 'deployed', chart: a.chart, description: 'Upgrade complete' }]), output: [`Release "${s.name}" has been upgraded. Happy Helming!`, `REVISION: ${next}`] };
   }
 
   if (a.type === 'rollback') {
     if (!s.revisions.length || cur.status === 'uninstalled' && !a.to) return { state: s, output: [], error: `Error: release: not found` };
-    const target = a.to ? s.revisions.find((r) => r.rev === a.to) : [...s.revisions].reverse().find((r) => r.rev < cur.rev && (r.status === 'deployed' || r.status === 'superseded'));
+    const target = a.to ? s.revisions.find((r) => r.rev === a.to) : s.revisions.find((r) => r.rev === cur.rev - 1);
     if (!target) return { state: s, output: [], error: `Error: release has no ${a.to ?? 'previous'} version` };
     const revs = s.revisions.map((r) => (r.status === 'deployed' || r.status.startsWith('pending') ? { ...r, status: 'superseded' as Status } : r));
     return { state: trim(s, [...revs, { rev: next, status: 'deployed', chart: target.chart, description: `Rollback to ${target.rev}` }]), output: ['Rollback was a success! Happy Helming!'] };
@@ -112,7 +114,7 @@ export default function HelmReleaseSim() {
   const cur = state.revisions[state.revisions.length - 1];
 
   return (
-    <SimFrame title="helm · release loja · namespace loja" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => { setState({ name: 'loja', revisions: [], historyMax: 10 }); setLog([]); }}>Reset</button>}>
+    <SimFrame title="Helm 3.17 · release loja · namespace loja" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => { setState({ name: 'loja', revisions: [], historyMax: 10 }); setLog([]); }}>Reset</button>}>
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <div>
           <div className="flex flex-wrap items-end gap-3">
@@ -132,7 +134,7 @@ export default function HelmReleaseSim() {
 
           <div className="label mb-2 mt-5">$ helm list -n loja</div>
           <pre className="overflow-x-auto rounded-md border border-tactical-border bg-black/60 p-3 font-mono text-[11px] leading-5 text-signal-green">
-            {`NAME   NAMESPACE  REVISION  STATUS            CHART\n${cur && cur.status !== 'uninstalled' ? `loja   loja       ${String(cur.rev).padEnd(9)} ${cur.status.padEnd(17)} ${cur.chart}` : ''}`}
+            {`NAME   NAMESPACE  REVISION  STATUS            CHART\n${cur && ['deployed', 'failed'].includes(cur.status) ? `loja   loja       ${String(cur.rev).padEnd(9)} ${cur.status.padEnd(17)} ${cur.chart}` : ''}`}
           </pre>
           {cur?.status.startsWith('pending') && <p className="mt-1 text-xs text-signal-amber">helm list sem --all/--pending esconde releases pendentes; use helm list -a.</p>}
 

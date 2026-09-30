@@ -5,12 +5,12 @@ import { Badge, SimFrame, Toggle } from './kit';
 
 export type Defense = 'scan' | 'distroless' | 'noAutomount' | 'rbac' | 'pss' | 'egress' | 'falco' | 'audit';
 export const DEFENSES: { id: Defense; label: string; kind: 'prevent' | 'detect' }[] = [
-  { id: 'scan', label: 'Imagens escaneadas e dependências atualizadas', kind: 'prevent' },
+  { id: 'scan', label: 'Vulnerabilidade de RCE deste cenário corrigida após scan', kind: 'prevent' },
   { id: 'distroless', label: 'Imagem distroless (sem shell) + readOnlyRootFilesystem', kind: 'prevent' },
   { id: 'noAutomount', label: 'automountServiceAccountToken: false', kind: 'prevent' },
   { id: 'rbac', label: 'RBAC de menor privilégio para a ServiceAccount', kind: 'prevent' },
   { id: 'pss', label: 'Pod Security "restricted" no namespace', kind: 'prevent' },
-  { id: 'egress', label: 'NetworkPolicy de egress + metadata da nuvem bloqueado', kind: 'prevent' },
+  { id: 'egress', label: 'Firewall do host bloqueia metadata + IAM de menor privilégio', kind: 'prevent' },
   { id: 'falco', label: 'Detecção em runtime (Falco)', kind: 'detect' },
   { id: 'audit', label: 'Audit log do API server com alertas', kind: 'detect' },
 ];

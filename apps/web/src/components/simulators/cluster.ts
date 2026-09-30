@@ -17,6 +17,7 @@ export interface KPod {
   node: string;
   ip: string;
   created: number;
+  startedAt?: number;
   restarts: number;
 }
 
@@ -72,7 +73,7 @@ export function initialCluster(): ClusterState {
   return {
     now,
     nodes: [
-      { name: 'control-plane', role: 'control-plane', schedulable: false },
+      { name: 'control-plane', role: 'control-plane', schedulable: true },
       { name: 'worker-1', role: 'worker', schedulable: true },
       { name: 'worker-2', role: 'worker', schedulable: true },
       { name: 'worker-3', role: 'worker', schedulable: true },
@@ -92,7 +93,7 @@ const age = (ms: number) => {
   return m < 60 ? `${m}m${s % 60}s` : `${Math.floor(m / 60)}h${m % 60}m`;
 };
 
-export const podStatus = (p: KPod, now: number) => (now - p.created < STARTUP_MS ? 'ContainerCreating' : 'Running');
+export const podStatus = (p: KPod, now: number) => (!p.node ? 'Pending' : now - (p.startedAt ?? p.created) < STARTUP_MS ? 'ContainerCreating' : 'Running');
 
 function table(rows: string[][]): string {
   const widths = rows[0].map((_, i) => Math.max(...rows.map((r) => (r[i] ?? '').length)));
@@ -100,7 +101,7 @@ function table(rows: string[][]): string {
 }
 
 function pickNode(state: ClusterState, extra: KPod[] = []): string | null {
-  const nodes = state.nodes.filter((n) => n.schedulable);
+  const nodes = state.nodes.filter((n) => n.schedulable && n.role !== 'control-plane');
   if (!nodes.length) return null;
   const all = [...state.pods, ...extra];
   const load = (n: string) => all.filter((p) => p.node === n).length;
@@ -120,10 +121,15 @@ export function reconcile(state: ClusterState): ClusterState {
       pods = pods.filter((p) => !drop.has(p.name));
     }
     for (let i = mine.length; i < d.replicas; i++) {
-      const node = pickNode({ ...state, pods }, []);
-      if (!node) break;
-      pods.push({ name: `${d.name}-${cur.hash}-${rand(5)}`, namespace: d.namespace, owner: d.name, hash: cur.hash, image: cur.image, node, ip: nextIp(), created: state.now, restarts: 0 });
+      const node = pickNode({ ...state, pods }, []) ?? '';
+      pods.push({ name: `${d.name}-${cur.hash}-${rand(5)}`, namespace: d.namespace, owner: d.name, hash: cur.hash, image: cur.image, node, ip: node ? nextIp() : '', created: state.now, restarts: 0 });
     }
+  }
+  // Scheduling is independent of admission: existing Pending Pods can bind later.
+  for (let i = 0; i < pods.length; i++) {
+    if (pods[i].node) continue;
+    const node = pickNode({ ...state, pods });
+    if (node) pods[i] = { ...pods[i], node, ip: nextIp(), startedAt: state.now };
   }
   return { ...state, pods };
 }
@@ -216,37 +222,46 @@ export function execute(input: string, prev: ClusterState): Result {
       return { state, output: HELP };
 
     case 'version':
-      return ok(state, 'Client Version: v1.34.1\nKustomize Version: v5.7.1\nServer Version: v1.34.0 (kubenautas-sim)');
+      return ok(state, 'Client Version: v1.34.1\nKustomize Version: v5.7.1\nServer Version: v1.34.0 (jack-academy-sim)');
 
     case 'get': {
-      const kind = kinds[pos[0]];
+      const { kind, name } = resolveTarget(pos);
       if (!kind) return err(`error: the server doesn't have a resource type "${pos[0] ?? ''}"`);
       const wide = flags.o === 'wide';
-      const all = !!flags.A;
+      const all = !!flags.A || !!flags['all-namespaces'];
       const inNs = <T extends { namespace: string }>(x: T) => all || x.namespace === ns;
-      const selector = typeof flags.l === 'string' ? flags.l.split('=')[1] : null;
+      const selector = typeof flags.l === 'string' ? flags.l : null;
+      if (selector && !/^[a-zA-Z0-9_.-]+=[a-zA-Z0-9_.-]+$/.test(selector)) return err('Neste simulador, use seletor chave=valor.');
+      const matchesSelector = (labels: Record<string, string>) => !selector || labels[selector.split('=')[0]] === selector.split('=')[1];
+      const named = <T extends { name: string }>(x: T) => !name || x.name === name;
+      if (name) {
+        const resources = kind === 'nodes' ? state.nodes : kind === 'namespaces' ? state.namespaces.map((n) => ({ name: n })) :
+          kind === 'pods' ? state.pods.filter(inNs) : kind === 'services' ? state.services.filter(inNs) :
+          kind === 'deployments' ? state.deployments.filter(inNs) : state.deployments.filter(inNs).flatMap((d) => d.revisions.map((r) => ({ name: `${d.name}-${r.hash}` })));
+        if (!resources.some((r) => r.name === name)) return err(`Error from server (NotFound): ${kind} "${name}" not found`);
+      }
       const outputs: string[] = [];
 
       if (kind === 'nodes') {
         const rows = [wide ? ['NAME', 'STATUS', 'ROLES', 'AGE', 'VERSION', 'INTERNAL-IP', 'CONTAINER-RUNTIME'] : ['NAME', 'STATUS', 'ROLES', 'AGE', 'VERSION']];
-        state.nodes.forEach((n, i) => {
-          const st = n.schedulable || n.role === 'control-plane' ? 'Ready' : 'Ready,SchedulingDisabled';
+        state.nodes.filter(named).forEach((n, i) => {
+          const st = n.schedulable ? 'Ready' : 'Ready,SchedulingDisabled';
           const r = [n.name, st, n.role === 'control-plane' ? 'control-plane' : '<none>', '12d', 'v1.34.0'];
           rows.push(wide ? [...r, `172.18.0.${i + 2}`, 'containerd://2.1.4'] : r);
         });
         return ok(state, table(rows));
       }
       if (kind === 'namespaces') {
-        return ok(state, table([['NAME', 'STATUS', 'AGE'], ...state.namespaces.map((n) => [n, 'Active', '12d'])]));
+        return ok(state, table([['NAME', 'STATUS', 'AGE'], ...state.namespaces.filter((n) => !name || name === n).map((n) => [n, 'Active', '12d'])]));
       }
       if (kind === 'pods' || kind === 'all') {
-        const pods = state.pods.filter(inNs).filter((p) => !selector || p.owner === selector);
+        const pods = state.pods.filter(inNs).filter(named).filter((p) => matchesSelector(p.owner ? { app: p.owner, 'pod-template-hash': p.hash ?? '' } : { run: p.name }));
         if (pods.length) {
           const head = kind === 'all' ? 'pod/' : '';
           const rows = [[...(all ? ['NAMESPACE'] : []), 'NAME', 'READY', 'STATUS', 'RESTARTS', 'AGE', ...(wide ? ['IP', 'NODE'] : [])]];
           pods.forEach((p) => {
             const st = podStatus(p, now);
-            rows.push([...(all ? [p.namespace] : []), head + p.name, st === 'Running' ? '1/1' : '0/1', st, String(p.restarts), age(now - p.created), ...(wide ? [p.ip, p.node] : [])]);
+            rows.push([...(all ? [p.namespace] : []), head + p.name, st === 'Running' ? '1/1' : '0/1', st, String(p.restarts), age(now - p.created), ...(wide ? [p.ip || '<none>', p.node || '<none>'] : [])]);
           });
           outputs.push(table(rows));
         } else if (kind === 'pods') {
@@ -254,16 +269,16 @@ export function execute(input: string, prev: ClusterState): Result {
         }
       }
       if (kind === 'services' || kind === 'all') {
-        const svcs = state.services.filter(inNs);
+        const svcs = state.services.filter(inNs).filter(named);
         if (svcs.length) {
           const head = kind === 'all' ? 'service/' : '';
-          const rows = [['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE', ...(wide ? ['SELECTOR'] : [])]];
+          const rows = [[...(all ? ['NAMESPACE'] : []), 'NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE', ...(wide ? ['SELECTOR'] : [])]];
           svcs.forEach((s) =>
             rows.push([
-              head + s.name,
+              ...(all ? [s.namespace] : []), head + s.name,
               s.type,
               s.clusterIP,
-              s.type === 'LoadBalancer' ? '203.0.113.10' : '<none>',
+              s.type === 'LoadBalancer' ? '<pending>' : '<none>',
               s.nodePort ? `${s.port}:${s.nodePort}/TCP` : `${s.port}/TCP`,
               s.name === 'kubernetes' ? '12d' : '1m',
               ...(wide ? [s.selector ? `app=${s.selector}` : '<none>'] : []),
@@ -273,30 +288,31 @@ export function execute(input: string, prev: ClusterState): Result {
         } else if (kind === 'services') return ok(state, `No resources found in ${ns} namespace.`);
       }
       if (kind === 'deployments' || kind === 'all') {
-        const deps = state.deployments.filter(inNs);
+        const deps = state.deployments.filter(inNs).filter((d) => (!name || d.name === name) && matchesSelector({ app: d.name }));
         if (deps.length) {
           const head = kind === 'all' ? 'deployment.apps/' : '';
-          const rows = [['NAME', 'READY', 'UP-TO-DATE', 'AVAILABLE', 'AGE', ...(wide ? ['IMAGES'] : [])]];
+          const rows = [[...(all ? ['NAMESPACE'] : []), 'NAME', 'READY', 'UP-TO-DATE', 'AVAILABLE', 'AGE', ...(wide ? ['IMAGES'] : [])]];
           deps.forEach((d) => {
             const pods = state.pods.filter((p) => p.owner === d.name && p.namespace === d.namespace);
             const ready = pods.filter((p) => podStatus(p, now) === 'Running').length;
-            rows.push([head + d.name, `${ready}/${d.replicas}`, String(pods.length), String(ready), '1m', ...(wide ? [d.revisions.at(-1)!.image] : [])]);
+            rows.push([...(all ? [d.namespace] : []), head + d.name, `${ready}/${d.replicas}`, String(pods.length), String(ready), '1m', ...(wide ? [d.revisions.at(-1)!.image] : [])]);
           });
           outputs.push(table(rows));
         } else if (kind === 'deployments') return ok(state, `No resources found in ${ns} namespace.`);
       }
       if (kind === 'replicasets' || kind === 'all') {
-        const deps = state.deployments.filter(inNs);
+        const deps = state.deployments.filter(inNs).filter((d) => (!name || kind === 'replicasets' || d.name === name) && matchesSelector({ app: d.name }));
         if (deps.length) {
           const head = kind === 'all' ? 'replicaset.apps/' : '';
-          const rows = [['NAME', 'DESIRED', 'CURRENT', 'READY', 'AGE']];
+          const rows = [[...(all ? ['NAMESPACE'] : []), 'NAME', 'DESIRED', 'CURRENT', 'READY', 'AGE']];
           deps.forEach((d) =>
             d.revisions.forEach((r, i) => {
+              if (name && name !== `${d.name}-${r.hash}`) return;
               const isCur = i === d.revisions.length - 1;
-              const pods = state.pods.filter((p) => p.owner === d.name && p.hash === r.hash);
+              const pods = state.pods.filter((p) => p.owner === d.name && p.namespace === d.namespace && p.hash === r.hash);
               const ready = pods.filter((p) => podStatus(p, now) === 'Running').length;
-              if (rows.some((row) => row[0] === `${head}${d.name}-${r.hash}`)) return;
-              rows.push([`${head}${d.name}-${r.hash}`, isCur ? String(d.replicas) : '0', String(pods.length), String(ready), '1m']);
+              if (rows.some((row) => row[all ? 1 : 0] === `${head}${d.name}-${r.hash}` && (!all || row[0] === d.namespace))) return;
+              rows.push([...(all ? [d.namespace] : []), `${head}${d.name}-${r.hash}`, isCur ? String(d.replicas) : '0', String(pods.length), String(ready), '1m']);
             }),
           );
           outputs.push(table(rows));
@@ -327,11 +343,11 @@ export function execute(input: string, prev: ClusterState): Result {
     case 'run': {
       const name = pos[0];
       const image = flags.image as string;
-      if (!name || !image) return err('error: uso: kubectl run NOME --image=IMG');
+      if (!name || typeof image !== 'string') return err('error: uso: kubectl run NOME --image=IMG');
+      if (!state.namespaces.includes(ns)) return err(`Error from server (NotFound): namespaces "${ns}" not found`);
       if (state.pods.some((p) => p.name === name && p.namespace === ns)) return err(`Error from server (AlreadyExists): pods "${name}" already exists`);
-      const node = pickNode(state);
-      if (!node) return err('pod ficaria Pending: nenhum nó schedulable');
-      return ok({ ...state, pods: [...state.pods, { name, namespace: ns, owner: null, hash: null, image, node, ip: nextIp(), created: now, restarts: 0 }] }, `pod/${name} created`);
+      const node = pickNode(state) ?? '';
+      return ok({ ...state, pods: [...state.pods, { name, namespace: ns, owner: null, hash: null, image, node, ip: node ? nextIp() : '', created: now, restarts: 0 }] }, `pod/${name} created`);
     }
 
     case 'expose': {
@@ -342,13 +358,17 @@ export function execute(input: string, prev: ClusterState): Result {
       if (!flags.port) return err("error: couldn't find port via --port flag or introspection");
       if (state.services.some((s) => s.name === name && s.namespace === ns)) return err(`Error from server (AlreadyExists): services "${name}" already exists`);
       const port = Number(flags.port);
+      const targetPort = flags['target-port'] ? Number(flags['target-port']) : port;
+      if (![port, targetPort].every((p) => Number.isInteger(p) && p >= 1 && p <= 65535)) return err('error: portas numéricas devem estar entre 1 e 65535');
+      const usedPorts = new Set(state.services.map((svc) => svc.nodePort));
+      const freePort = Array.from({ length: 2768 }, (_, i) => 30000 + i).find((p) => !usedPorts.has(p));
       const type = ((flags.type as string) || 'ClusterIP') as KService['type'];
       if (!['ClusterIP', 'NodePort', 'LoadBalancer'].includes(type)) return err(`error: tipo de Service inválido: ${type}`);
       const svc: KService = {
         name, namespace: ns, type, port,
-        targetPort: flags['target-port'] ? Number(flags['target-port']) : port,
+        targetPort,
         clusterIP: `10.96.${Math.floor(Math.random() * 200) + 10}.${Math.floor(Math.random() * 250) + 2}`,
-        nodePort: type === 'ClusterIP' ? undefined : 30000 + Math.floor(Math.random() * 2767),
+        nodePort: type === 'ClusterIP' ? undefined : freePort,
         selector: name,
       };
       return ok({ ...state, services: [...state.services, svc] }, `service/${name} exposed`);
@@ -373,6 +393,7 @@ export function execute(input: string, prev: ClusterState): Result {
       const d = state.deployments.find((x) => x.name === name && x.namespace === ns);
       if (!d) return err(`Error from server (NotFound): deployments.apps "${name}" not found`);
       const [container, image] = assign.split('=');
+      if (!image) return err('error: a imagem não pode ser vazia');
       const containerName = d.image.split('/').pop()!.split(':')[0];
       if (container !== containerName && container !== '*') return err(`error: unable to find container named "${container}" (o container se chama "${containerName}")`);
       if (d.revisions.at(-1)!.image === image) return ok(state, `deployment.apps/${name} image updated (sem mudanças)`);
@@ -387,7 +408,7 @@ export function execute(input: string, prev: ClusterState): Result {
       const d = state.deployments.find((x) => x.name === name && x.namespace === ns);
       if (!d) return err(`Error from server (NotFound): deployments.apps "${name}" not found`);
       if (sub === 'status') {
-        const pods = state.pods.filter((p) => p.owner === d.name);
+        const pods = state.pods.filter((p) => p.owner === d.name && p.namespace === d.namespace);
         const ready = pods.filter((p) => podStatus(p, now) === 'Running').length;
         return ok(state, ready >= d.replicas ? `deployment "${name}" successfully rolled out` : `Waiting for deployment "${name}" rollout to finish: ${ready} of ${d.replicas} updated replicas are available...\n(rode de novo em alguns segundos)`);
       }
@@ -396,7 +417,9 @@ export function execute(input: string, prev: ClusterState): Result {
       }
       if (sub === 'undo') {
         if (d.revisions.length < 2) return err(`error: no rollout history found for deployment "${name}"`);
-        const prevRev = d.revisions[d.revisions.length - 2];
+        const revision = flags['to-revision'] === undefined ? d.revisions.length - 1 : Number(flags['to-revision']);
+        if (!Number.isInteger(revision) || revision < 1 || revision > d.revisions.length) return err('error: unable to find specified revision');
+        const prevRev = d.revisions[revision - 1];
         const deployments = state.deployments.map((x) => (x === d ? { ...x, revisions: [...x.revisions, prevRev] } : x));
         return ok(reconcile({ ...state, deployments }), `deployment.apps/${name} rolled back`);
       }
@@ -427,7 +450,8 @@ export function execute(input: string, prev: ClusterState): Result {
         return ok({ ...state, services: state.services.filter((x) => !(x.name === name && x.namespace === ns)) }, `service "${name}" deleted`);
       }
       if (kind === 'namespaces') {
-        if (['default', 'kube-system'].includes(name)) return err(`Error from server (Forbidden): namespace "${name}" é protegido`);
+        if (!state.namespaces.includes(name)) return err(`Error from server (NotFound): namespaces "${name}" not found`);
+        if (['default', 'kube-system'].includes(name)) return err(`Limite do simulador: a remoção do namespace "${name}" não é implementada (Kubernetes permite essa operação com autorização)`);
         return ok({ ...state, namespaces: state.namespaces.filter((n) => n !== name), pods: state.pods.filter((p) => p.namespace !== name), deployments: state.deployments.filter((d) => d.namespace !== name), services: state.services.filter((s) => s.namespace !== name) }, `namespace "${name}" deleted`);
       }
       return err(`error: delete de ${kind} não suportado no simulador`);
@@ -440,6 +464,7 @@ export function execute(input: string, prev: ClusterState): Result {
         const p = state.pods.find((x) => x.name === name && x.namespace === ns);
         if (!p) return err(`Error from server (NotFound): pods "${name}" not found`);
         const st = podStatus(p, now);
+        if (!p.node) return ok(state, `Name: ${p.name}\nNamespace: ${p.namespace}\nNode: <none>\nStatus: Pending\nEvents:\n  Warning FailedScheduling default-scheduler 0/${state.nodes.length} nodes are available: nodes unschedulable or with untolerated control-plane taint.`);
         return ok(state, `Name:         ${p.name}
 Namespace:    ${p.namespace}
 Node:         ${p.node}
@@ -466,7 +491,7 @@ Events:
       if (kind === 'deployments') {
         const d = state.deployments.find((x) => x.name === name && x.namespace === ns);
         if (!d) return err(`Error from server (NotFound): deployments.apps "${name}" not found`);
-        const pods = state.pods.filter((p) => p.owner === d.name);
+        const pods = state.pods.filter((p) => p.owner === d.name && p.namespace === d.namespace);
         const ready = pods.filter((p) => podStatus(p, now) === 'Running').length;
         return ok(state, `Name:                   ${d.name}
 Namespace:              ${d.namespace}

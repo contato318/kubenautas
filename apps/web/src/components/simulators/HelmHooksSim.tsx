@@ -4,7 +4,7 @@ import { Badge, Choice, SimFrame, Tone } from './kit';
 /**
  * Hooks do Helm:
  * - hooks rodam em fases (pre-install, post-install, pre-upgrade, post-upgrade, pre-delete, pre-rollback, test…),
- *   em ordem de helm.sh/hook-weight (menor primeiro) e depois pelo nome; o Helm espera cada Job terminar;
+ *   em ordem de helm.sh/hook-weight (menor primeiro) e depois por kind e nome; o Helm espera cada Job terminar;
  * - hook que falha marca a release como failed e interrompe a operação;
  * - hook-delete-policy: before-hook-creation (padrão quando nada é informado), hook-succeeded, hook-failed;
  * - hooks não fazem parte da release: sobrevivem ao uninstall, a menos que uma política os apague.
@@ -47,13 +47,13 @@ export function run(hooks: Hook[], state: HookState, op: Operation, failing: Set
   if (op !== 'install' && !state.installed) return { steps: [{ text: 'Error: release: not found', tone: 'red' }], state, status: 'erro' };
 
   const runPhase = (phase: string): boolean => {
-    const list = hooks.filter((h) => h.events.includes(phase)).sort((a, b) => a.weight - b.weight || a.name.localeCompare(b.name));
+    const list = hooks.filter((h) => h.events.includes(phase)).sort((a, b) => a.weight - b.weight || (a.kind === b.kind ? 0 : a.kind === 'Pod' ? -1 : 1) || a.name.localeCompare(b.name));
     if (!list.length) return true;
     steps.push({ text: `── fase ${phase} (${list.length} hook${list.length > 1 ? 's' : ''}) ──`, tone: 'blue' });
     for (const h of list) {
       const id = `${h.kind.toLowerCase()}/${h.name}`;
       if (leftovers.includes(id)) {
-        if (h.policies.includes('before-hook-creation')) {
+        if (h.policies.length === 0 || h.policies.includes('before-hook-creation')) {
           steps.push({ text: `${id}: sobra da execução anterior apagada (before-hook-creation)`, tone: 'dim' });
           leftovers = leftovers.filter((x) => x !== id);
         } else {

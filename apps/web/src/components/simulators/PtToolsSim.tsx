@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { SimFrame } from './kit';
+import { useAccount } from '../../auth/AccountProvider';
+import AccountNotice from '../AccountNotice';
 
 /** Qual ferramenta de avaliação usar em cada situação. */
 
@@ -23,6 +25,8 @@ export const MISSIONS: Mission[] = [
 ];
 
 export default function PtToolsSim() {
+  const { user, status } = useAccount();
+  const canAnswer = !!user && status === 'ready';
   const [idx, setIdx] = useState(0);
   const [answered, setAnswered] = useState<number | null>(null);
   const m = MISSIONS[idx];
@@ -30,11 +34,12 @@ export default function PtToolsSim() {
 
   return (
     <SimFrame title={`ferramentas de avaliação · ${idx + 1}/${MISSIONS.length}`} toolbar={<span className="font-mono text-xs text-signal-cyan">use sempre com autorização</span>}>
+      {!canAnswer && <AccountNotice />}
       <p className="mb-3 text-sm">{m.situation}</p>
       <div className="grid gap-2">
         {m.options.map((o, i) => {
           const state = answered === null ? '' : i === m.answer ? 'border-signal-green text-signal-green' : i === answered ? 'border-signal-red text-signal-red' : 'opacity-60';
-          return <button key={o} disabled={answered !== null} onClick={() => setAnswered(i)} className={`rounded-md border border-tactical-border px-3 py-2 text-left text-sm ${state}`}>{o}</button>;
+          return <button key={o} disabled={!canAnswer || answered !== null} onClick={() => { if (canAnswer) setAnswered(i); }} className={`rounded-md border border-tactical-border px-3 py-2 text-left text-sm disabled:cursor-not-allowed ${state}`}>{o}</button>;
         })}
       </div>
       {answered !== null && <div className="mt-3 rounded-md border-l-4 border-signal-cyan bg-signal-cyan/10 px-4 py-2 text-sm text-tactical-dim">{answered === m.answer ? '✔ ' : '✖ '}{m.why}</div>}

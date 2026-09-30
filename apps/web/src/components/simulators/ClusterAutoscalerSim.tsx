@@ -122,8 +122,8 @@ export function stepCa(s: CaState): CaState {
         if (t % 4 === 0) log = pushLog(log, logEntry(`${candidate.name} subutilizado, mas tem Pod com safe-to-evict: "false" — scale down bloqueado`, 'red'));
       } else if (freeElsewhere >= moving.length) {
         nodes = nodes.filter((n) => n.name !== candidate.name);
-        pods = pods.map((p) => (p.node === candidate.name ? { ...p, node: null } : p));
-        log = pushLog(log, logEntry(`ScaleDown: ${candidate.name} removido (${moving.length} Pod(s) realocados)`, 'cyan'));
+        pods = pods.map((p) => (p.node === candidate.name ? { name: `app-${rid()}`, node: null } : p));
+        log = pushLog(log, logEntry(`ScaleDown: ${candidate.name} removido (${moving.length} Pod(s) removidos; substitutos aguardam agendamento)`, 'cyan'));
       }
     }
   }

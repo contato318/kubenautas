@@ -21,7 +21,7 @@ export interface IngressRule {
   backend: string;
 }
 
-const segments = (p: string) => p.split('/').filter(Boolean);
+const segments = (p: string) => p.replace(/\/+$/, '').split('/');
 
 export function pathMatches(rulePath: string, pathType: PathType, requestPath: string) {
   if (pathType === 'Exact') return rulePath === requestPath;

@@ -124,6 +124,8 @@ export interface Request {
   host: string;
   path: string;
   method: string;
+  search?: string;
+  scheme?: 'http' | 'https';
   headers: Record<string, string>;
 }
 
@@ -146,7 +148,7 @@ export interface RouteResult {
 
 function pathMatches(m: Match, path: string) {
   if (m.pathType === 'Exact') return m.path === path;
-  const seg = (p: string) => p.split('/').filter(Boolean);
+  const seg = (p: string) => p.replace(/\/+$/, '').split('/');
   const a = seg(m.path);
   const b = seg(path);
   return a.length <= b.length && a.every((s, i) => s === b[i]);
@@ -160,14 +162,14 @@ function matchApplies(m: Match, req: Request) {
   );
 }
 
-const hostSpecificity = (pattern: string | undefined, host: string) => (!pattern ? 0 : pattern === host ? 2 : hostMatches(pattern, host) ? 1 : -1);
+const hostSpecificity = (pattern: string | undefined, host: string) => (!pattern ? 0 : pattern === host ? 10000 : hostMatches(pattern, host) ? pattern.length : -1);
 
 export function routeRequest(cfg: GatewayConfig, req: Request): RouteResult {
   // 1. Listener: mesma porta, hostname mais específico
   const listener = cfg.listeners
     .filter((l) => l.port === req.port && hostSpecificity(l.hostname, req.host) >= 0)
     .sort((a, b) => hostSpecificity(b.hostname, req.host) - hostSpecificity(a.hostname, req.host))[0];
-  if (!listener) return { status: 404, explanation: `Nenhum listener na porta ${req.port} aceita o hostname ${req.host}.` };
+  if (!listener) return { status: 0, explanation: `Nenhum listener na porta ${req.port} aceita o hostname ${req.host}.` };
 
   // 2. Rotas anexadas a esse listener e que atendem o hostname
   const routes = cfg.routes.filter(
@@ -198,9 +200,11 @@ export function routeRequest(cfg: GatewayConfig, req: Request): RouteResult {
   const where = `${win.r.namespace}/${win.r.name} · regra ${win.ruleIndex + 1} (${win.m.pathType} ${win.m.path}${win.m.headers ? ` + headers ${Object.keys(win.m.headers).join(',')}` : ''})`;
   const redirect = win.rule.filters?.find((f): f is Extract<Filter, { type: 'RequestRedirect' }> => f.type === 'RequestRedirect');
   if (redirect) {
-    const path = redirect.replacePrefix && win.m.pathType === 'PathPrefix' ? redirect.replacePrefix + req.path.slice(win.m.path.length) : req.path;
-    const scheme = redirect.scheme ?? (req.port === 443 ? 'https' : 'http');
-    return { status: redirect.statusCode, listener, route: win.r, ruleIndex: win.ruleIndex, location: `${scheme}://${req.host}${path}`, explanation: `${where} → filtro RequestRedirect` };
+    const path = redirect.replacePrefix !== undefined && win.m.pathType === 'PathPrefix' ? (redirect.replacePrefix.replace(/\/$/, '') + req.path.slice(win.m.path.replace(/\/$/, '').length) || '/') : req.path;
+    const scheme = redirect.scheme ?? req.scheme ?? (req.port === 443 ? 'https' : 'http');
+    const port = redirect.scheme ? 443 : req.port;
+    const authority = req.host + (port === (scheme === 'https' ? 443 : 80) ? '' : `:${port}`);
+    return { status: redirect.statusCode, listener, route: win.r, ruleIndex: win.ruleIndex, location: `${scheme}://${authority}${path}${req.search ?? ''}`, explanation: `${where} → filtro RequestRedirect` };
   }
 
   const total = win.rule.backendRefs.reduce((a, b) => a + b.weight, 0);
@@ -267,16 +271,17 @@ const PRESETS: { label: string; url: string; canary?: boolean }[] = [
   { label: 'outro domínio', url: 'https://api.pagamentos.com/' },
 ];
 
-export function parseUrl(url: string): Pick<Request, 'port' | 'host' | 'path'> | null {
+export function parseUrl(url: string): Pick<Request, 'port' | 'host' | 'path' | 'search' | 'scheme'> | null {
   try {
     const u = new URL(url.includes('://') ? url : `https://${url}`);
-    return { port: u.port ? Number(u.port) : u.protocol === 'http:' ? 80 : 443, host: u.hostname, path: u.pathname || '/' };
+    if (!['http:', 'https:'].includes(u.protocol)) return null;
+    return { scheme: u.protocol === 'http:' ? 'http' : 'https', search: u.search, port: u.port ? Number(u.port) : u.protocol === 'http:' ? 80 : 443, host: u.hostname, path: u.pathname || '/' };
   } catch {
     return null;
   }
 }
 
-const statusTone = (s: number): Tone => (s >= 500 ? 'red' : s >= 400 ? 'amber' : s >= 300 ? 'cyan' : 'green');
+const statusTone = (s: number): Tone => (s === 0 || s >= 500 ? 'red' : s >= 400 ? 'amber' : s >= 300 ? 'cyan' : 'green');
 
 export default function GatewayApiSim() {
   const [allowedFrom, setAllowedFrom] = useState<AllowedFrom>('Selector');
@@ -361,7 +366,7 @@ export default function GatewayApiSim() {
           {result ? (
             <div className="mt-4 rounded-md border border-tactical-border p-4">
               <div className="flex flex-wrap items-center gap-3">
-                <Badge tone={statusTone(result.status)}>HTTP {result.status}</Badge>
+                <Badge tone={statusTone(result.status)}>{result.status === 0 ? 'Sem listener compatível' : `HTTP ${result.status}`}</Badge>
                 {result.listener && <span className="font-mono text-xs text-tactical-label">listener {result.listener.name}</span>}
               </div>
               <p className="mt-2 text-sm text-tactical-dim">{result.explanation}</p>

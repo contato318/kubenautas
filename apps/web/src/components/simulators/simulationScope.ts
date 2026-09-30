@@ -1,0 +1,30 @@
+import type { SimulatorId } from '../../types';
+
+/** Assumptions that affect how the learner interprets the result. */
+export const simulationScope: Partial<Record<SimulatorId, string>> = {
+  'rolling-update': 'Este cenário começa com 4 réplicas, maxSurge=1 e maxUnavailable=1, equivalentes aos padrões de 25%. Os controles usam quantidades absolutas. Criação, readiness e término têm tempos acelerados; Pods Terminating podem fazer o total visível ultrapassar replicas + maxSurge.',
+  scheduler: 'A pontuação demonstra NodeResourcesFit (LeastAllocated ou MostAllocated). O scheduler real combina outros plugins e restrições; o nó vencedor pode ser diferente.',
+  service: 'A distribuição cíclica facilita acompanhar cada conexão. Kubernetes não garante round-robin por requisição: o comportamento depende de kube-proxy/CNI, afinidade e reutilização de conexões.',
+  'pod-lifecycle': 'Relógio 5× acelerado. Probes deste exemplo: periodSeconds=3 e failureThreshold=3; o padrão de periodSeconds é 10. RestartPolicy=Always. Encerramento gracioso e startupProbe não são representados.',
+  'cluster-autoscaler': 'Cluster Autoscaler é um componente adicional. Este grupo usa apenas requests de CPU, nós iguais e tempos reduzidos. Em produção, memória, PDBs, afinidade, volumes, configuração do autoscaler e provedor também podem impedir mudanças.',
+  storage: 'As StorageClasses e drivers deste cenário são exemplos já instalados. O consumidor representa um Pod com agendamento viável; topologia de volumes, expansão e falhas de CSI não são simuladas aqui.',
+  dns: 'Consultas ilustrativas com search domains e ndots=5. Cache, consultas A/AAAA, libc da imagem, política DNS e configuração do CoreDNS podem alterar a sequência observada.',
+  ingress: 'Assume um Ingress Controller instalado, sem reescrita de URL. A seleção do virtual host segue o cenário mostrado; detalhes entre regras de hosts diferentes dependem do controller.',
+  'gateway-api': 'Assume CRDs Gateway API e controller compatível já instalados. Pesos representam proporções de tráfego, não garantias para cada requisição. Certificados, TLS handshake e recursos experimentais não são simulados.',
+  'ts-scheduling': 'Mostra filtros selecionados do scheduler. Os Pods existentes deste cenário não são vítimas elegíveis para preempção; em outro cluster, PriorityClass e PDBs podem mudar o resultado.',
+  'ts-node': 'Referência Kubernetes 1.34: grace period de 50s e toleração de 300s. O caso containerd usa Generic PLEG com limiar de 3min; runtime, Evented PLEG e parâmetros do kubelet podem mudar a detecção.',
+  'ts-control-plane': 'As operações representam o caminho principal. Durante falhas do etcd, algumas leituras ainda podem ser atendidas por caches; regras de rede e containers existentes podem continuar funcionando sem os controladores.',
+  'op-schema': 'Valida o schema Database mostrado e suas regras CEL fixas. Não é um interpretador de toda a linguagem CEL nem um validador de qualquer CRD.',
+  'op-versions': 'Objetos antigos só deixam storedVersions após migração e atualização do status do CRD. Conversão None não renomeia campos; schemas diferentes podem causar pruning e perda de dados.',
+  'hd-cis-audit': 'Checklist didático inspirado em CIS, sem executar kube-bench. O perfil kubeadm inclui API pública como hipótese do cenário; exposição à internet depende da rede e não é um padrão obrigatório do Kubernetes.',
+  'hd-pss': 'Subset de campos de segurança para Pods Linux. Baseline/Restricted reais validam outros campos e variam com a versão de enforce-version; passe no simulador para estudar estas regras, não para certificar um manifesto completo.',
+  'hd-secrets': 'Ao escolher criptografia, o cenário assume Secrets já regravados com o provider. Alterar EncryptionConfiguration sozinho não cifra retroativamente registros nem backups existentes.',
+  'hd-admission': 'As regras de registry, assinatura e CVEs são políticas adicionais do cenário. Kubernetes não ativa essas verificações por padrão; requer configuração de um mecanismo de admissão e suas integrações.',
+  'hd-runtime': 'Controles são avaliados contra as ações específicas descritas. Falco requer regras e coleta habilitadas; seccomp RuntimeDefault depende do runtime. Nenhum desses controles isolados garante impedir qualquer RCE ou escape.',
+  'hd-rbac-risk': 'Risco potencial não é uma lista de permissões efetivas. Escopo depende dos bindings; assumir identidades depende de credenciais acessíveis e permissões adicionais. Recursos de cluster não recebem permissões por uma Role de namespace.',
+  'pt-recon': 'Porta alcançável indica superfície exposta, não acesso autorizado aos dados. Autenticação, autorização e configuração do serviço determinam o impacto.',
+  'pt-enum': 'Listar ClusterRoleBindings mostra vínculos no escopo do cluster. Para o mapa completo, confira também Roles, RoleBindings e as regras de cada ClusterRole.',
+  'pt-loot': 'O impacto depende do conteúdo e das permissões das credenciais encontradas. IMDSv2/hop limit pode restringir acesso de Pods, mas não protege sozinho contra um host já comprometido; limite também a identidade IAM do nó.',
+  'pt-tools': 'Exemplos de kubectl com --as exigem permissão de impersonação. Eles não concedem as permissões da identidade escolhida a um usuário sem essa autorização.',
+  'pt-report': 'A matriz probabilidade × impacto é uma convenção deste exercício. Não corresponde a uma classificação automática do Kubernetes nem substitui evidências sobre o ambiente avaliado.',
+};

@@ -22,7 +22,7 @@ export function volumeCheck(i: VolumeInput): VolumeResult {
   if (i.quotaExceeded) {
     return {
       pvc: 'não criado',
-      pods: [{ name: 'web-0', status: 'Pending (o StatefulSet não consegue criar o PVC)', ok: false }],
+      pods: [{ name: 'web-0', status: 'não criado (o StatefulSet precisa criar o PVC antes do Pod)', ok: false }],
       events: ['Warning  FailedCreate  statefulset-controller  create Claim data-web-0 for Pod web-0 in StatefulSet web failed error: persistentvolumeclaims "data-web-0" is forbidden: exceeded quota: storage-quota, requested: requests.storage=100Gi, used: requests.storage=450Gi, limited: requests.storage=500Gi'],
       fix: 'Reduza o tamanho pedido, libere PVCs antigos (kubectl get pvc) ou aumente a ResourceQuota do namespace.',
     };

@@ -67,7 +67,7 @@ describe('risco RBAC', () => {
   it('leitura é baixo; escalate/bind e impersonate são cluster-admin', () => {
     expect(analyzeRules(new Set<RulePerm>(['read-pods'])).effective).toBe('baixo');
     expect(analyzeRules(new Set<RulePerm>(['read-pods', 'create-pods'])).effective).toBe('alto');
-    expect(analyzeRules(new Set<RulePerm>(['escalate-bind'])).effective).toBe('cluster-admin');
+    expect(analyzeRules(new Set<RulePerm>(['escalate-bind'])).effective).toBe('alto');
     expect(analyzeRules(new Set<RulePerm>(['impersonate'])).effective).toBe('cluster-admin');
   });
 });

@@ -27,11 +27,11 @@ const phaseTone: Record<Phase, Tone> = { Starting: 'cyan', Ready: 'green', Image
 
 const newPod = (version: Version): Pod => ({ name: `web-${version.replace('-bug', 'b')}-${rid()}`, version, phase: 'Starting', t: 0 });
 
-function initial(): State {
+export function initialRollout(): State {
   return {
     replicas: 4,
     maxSurge: 1,
-    maxUnavailable: 0,
+    maxUnavailable: 1,
     target: 'v1',
     history: ['v1'],
     pods: Array.from({ length: 4 }, () => ({ ...newPod('v1'), phase: 'Ready' as Phase })),
@@ -39,7 +39,8 @@ function initial(): State {
   };
 }
 
-function step(s: State): State {
+export function stepRollout(s: State): State {
+  if (s.maxSurge === 0 && s.maxUnavailable === 0) return s; // API rejects this configuration
   let log = s.log;
   const add = (text: string, tone?: Tone) => (log = pushLog(log, logEntry(text, tone)));
 
@@ -95,8 +96,8 @@ function step(s: State): State {
 }
 
 export default function RollingUpdateSim() {
-  const [s, setS] = useState<State>(initial);
-  useInterval(() => setS(step), 1100);
+  const [s, setS] = useState<State>(initialRollout);
+  useInterval(() => setS(stepRollout), 1100);
 
   const deploy = (v: Version) =>
     setS((st) =>
@@ -131,7 +132,7 @@ export default function RollingUpdateSim() {
   const invalid = s.maxSurge === 0 && s.maxUnavailable === 0;
 
   return (
-    <SimFrame title="rollout · deployment/web" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => setS(initial())}>Reset</button>}>
+    <SimFrame title="rollout · deployment/web" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => setS(initialRollout())}>Reset</button>}>
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
         <div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -151,7 +152,7 @@ export default function RollingUpdateSim() {
             <Select label="maxSurge" value={s.maxSurge} options={[0, 1, 2, 3]} onChange={(n) => setS((st) => ({ ...st, maxSurge: n }))} />
             <Select label="maxUnavailable" value={s.maxUnavailable} options={[0, 1, 2, 3]} onChange={(n) => setS((st) => ({ ...st, maxUnavailable: n }))} />
           </div>
-          {invalid && <p className="mb-3 text-sm text-signal-red">maxSurge e maxUnavailable não podem ser 0 ao mesmo tempo — o rollout nunca progrediria.</p>}
+          {invalid && <p className="mb-3 text-sm text-signal-red">A API rejeita maxSurge=0 e maxUnavailable=0. Escolha uma configuração válida para continuar.</p>}
 
           <div className="rounded-md border border-tactical-line bg-tactical-bg p-4">
             <div className="mb-3 flex flex-wrap gap-4 font-mono text-xs">

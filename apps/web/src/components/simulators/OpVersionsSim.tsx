@@ -47,7 +47,7 @@ export function evaluateVersions(c: VersionsCfg): VersionsResult {
     const anyConv = objects.some((o) => o !== v);
     if (anyConv && c.conversion === 'Webhook' && !c.webhookUp) requests.push({ req, ok: false, msg: webhookErr });
     else if (conv.length && c.conversion === 'None')
-      requests.push({ req, ok: true, warn: true, msg: `Responde, mas com conversão None só o apiVersion muda: objetos gravados em ${conv.includes('v1alpha1') ? 'v1alpha1 aparecem com spec.size' : `${c.storage} aparecem com spec.storage.size`} em uma versão cujo schema espera outro formato` });
+      requests.push({ req, ok: true, warn: true, msg: `Responde, mas com conversão None só o apiVersion muda: objetos gravados em outra versão não têm campos renomeados. Campos fora do schema podem ser removidos por pruning: risco de perda de dados` });
     else requests.push({ req, ok: true, msg: anyConv ? `2 objetos (convertidos pelo ${c.conversion === 'Webhook' ? 'webhook' : 'API server'})` : '2 objetos, sem conversão' });
   }
   const write = `kubectl apply -f db-v1.yaml`;

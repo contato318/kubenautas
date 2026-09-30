@@ -61,8 +61,8 @@ export const MISSIONS: Mission[] = [
   {
     id: 'ci',
     title: 'Pipeline de CI',
-    story: 'O pipeline atualiza a imagem com kubectl set image e acompanha com kubectl rollout status (get/patch em deployments, get/list/watch em pods).',
-    must: [['deployments', 'get'], ['deployments', 'patch'], ['pods', 'get'], ['pods', 'list'], ['pods', 'watch']],
+    story: 'O pipeline atualiza a imagem com kubectl set image e acompanha com kubectl rollout status (get/list/watch/patch em deployments e inspeção get/list/watch em pods).',
+    must: [['deployments', 'get'], ['deployments', 'patch'], ['deployments', 'list'], ['deployments', 'watch'], ['pods', 'get'], ['pods', 'list'], ['pods', 'watch']],
     mustNot: [['deployments', 'delete'], ['secrets', 'get'], ['secrets', 'list'], ['pods/exec', 'create']],
   },
   {
@@ -75,8 +75,8 @@ export const MISSIONS: Mission[] = [
   {
     id: 'config',
     title: 'Operador de configuração',
-    story: 'Uma ferramenta de GitOps aplica ConfigMaps (get, list, create, update). Ela não pode tocar em Secrets nem em Deployments.',
-    must: [['configmaps', 'get'], ['configmaps', 'list'], ['configmaps', 'create'], ['configmaps', 'update']],
+    story: 'Uma ferramenta de GitOps aplica ConfigMaps (get, list, create, update, patch). Ela não pode tocar em Secrets nem em Deployments.',
+    must: [['configmaps', 'get'], ['configmaps', 'list'], ['configmaps', 'create'], ['configmaps', 'update'], ['configmaps', 'patch']],
     mustNot: [['secrets', 'get'], ['secrets', 'list'], ['deployments', 'update']],
   },
 ];

@@ -19,17 +19,15 @@ export const TARGETS: { id: Target; label: string; sensitive: boolean }[] = [
   { id: 'apiserver', label: 'API server (kubernetes.default)', sensitive: false },
 ];
 
-export function reachable(pos: Position, t: Target, n: NetPosture): boolean {
+export function reachable(_pos: Position, t: Target, n: NetPosture): boolean {
+  // The scenario applies the same policies to every selected namespace, including kube-system.
+  if (n.defaultDeny) return false;
   switch (t) {
-    case 'api-interna': return true; // mesmo namespace quase sempre alcançável
-    case 'apiserver': return true;   // ClusterIP do apiserver costuma ser alcançável
-    case 'metadata': return !n.metadataBlocked;
+    case 'api-interna': return true;
+    case 'apiserver': return true; // explicit exception in the egress-restricted preset
+    case 'metadata': return !n.metadataBlocked && !n.egressRestricted;
     case 'internet': return !n.egressRestricted;
-    case 'db-pagamentos': {
-      if (pos === 'kube-system') return true;
-      if (!n.defaultDeny && !n.nsIsolation) return true;
-      return false; // segmentado
-    }
+    case 'db-pagamentos': return !n.nsIsolation && !n.egressRestricted;
   }
 }
 
@@ -45,10 +43,10 @@ export default function PtLateralSim() {
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <div className="space-y-2">
           <Choice label="Pod comprometido em" value={pos} onChange={setPos} options={[{ value: 'web', label: 'ns web (frontend)' }, { value: 'loja', label: 'ns loja' }, { value: 'kube-system', label: 'ns kube-system' }]} />
-          <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.defaultDeny} onChange={(e) => set({ defaultDeny: e.target.checked })} /> default-deny nos namespaces</label>
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.defaultDeny} onChange={(e) => set({ defaultDeny: e.target.checked })} /> default-deny ingress e egress, sem exceções</label>
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.nsIsolation} onChange={(e) => set({ nsIsolation: e.target.checked })} /> isolamento entre namespaces</label>
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.metadataBlocked} onChange={(e) => set({ metadataBlocked: e.target.checked })} /> metadata bloqueado</label>
-          <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.egressRestricted} onChange={(e) => set({ egressRestricted: e.target.checked })} /> egress restrito</label>
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-[#326ce5]" checked={n.egressRestricted} onChange={(e) => set({ egressRestricted: e.target.checked })} /> egress só para o mesmo namespace e API server</label>
         </div>
         <ul className="min-w-0 space-y-1">
           {results.map((r) => (
@@ -57,7 +55,7 @@ export default function PtLateralSim() {
               <Badge tone={r.reach ? (r.t.sensitive ? 'red' : 'amber') : 'green'}>{r.reach ? 'alcançável' : 'bloqueado'}</Badge>
             </li>
           ))}
-          <li className="text-xs text-tactical-label">O API server e serviços do mesmo namespace quase sempre são alcançáveis; a segmentação existe para conter o resto. Note que um Pod em kube-system costuma ter alcance amplo — por isso é um alvo de alto valor.</li>
+          <li className="text-xs text-tactical-label">Todos os Pods deste cenário usam a rede do CNI (sem hostNetwork). As mesmas policies selecionam os três namespaces: kube-system não tem bypass automático. Default-deny aqui não recebe regras de allow; os demais controles são cenários separados de segmentação.</li>
         </ul>
       </div>
     </SimFrame>

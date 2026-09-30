@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { EventLog, LogEntry, SimFrame, logEntry, pushLog, useInterval } from './kit';
 
-/** Each Pod requests 200m CPU and burns 1m per req/s: 200 req/s saturates a Pod (100%). */
+/** One container per Pod, 200m CPU request; 100% is the request, not a CPU limit. */
 const RPS_PER_FULL_POD = 200;
 const SYNC_EVERY = 3; // ticks between HPA evaluations (real: 15s)
-const WINDOW = 8; // scale-down stabilization window in ticks (real: 300s)
+const WINDOW = 20; // 20 evaluations × 15 simulated seconds = 300s
 const STARTUP = 2; // ticks for a new Pod to become Ready
 const TOLERANCE = 0.1;
 
-interface State {
+export interface State {
   t: number;
   load: number;
   target: number;
@@ -23,7 +23,7 @@ interface State {
   log: LogEntry[];
 }
 
-const initial = (): State => ({
+export const initialHpa = (): State => ({
   t: 0,
   load: 150,
   target: 50,
@@ -39,7 +39,7 @@ const initial = (): State => ({
 const readyCount = (pods: number[]) => pods.filter((a) => a >= STARTUP).length;
 const utilization = (load: number, ready: number) => (ready === 0 ? 0 : Math.round((load / ready / RPS_PER_FULL_POD) * 100));
 
-function step(s: State): State {
+export function stepHpa(s: State): State {
   const t = s.t + 1;
   let pods = s.pods.map((a) => a + 1);
   let log = s.log;
@@ -47,19 +47,23 @@ function step(s: State): State {
   if (t % SYNC_EVERY === 0 && readyCount(pods) > 0) {
     const current = pods.length;
     // Not-yet-ready Pods count as 0% usage, which dampens repeated scale-ups.
-    const util = utilization(s.load, current);
+    const ready = readyCount(pods);
+    const measured = (s.load / ready / RPS_PER_FULL_POD) * 100;
+    // On scale-up, unready Pods count as zero; on scale-down, keep them out of the estimate.
+    const util = measured > s.target ? measured * ready / current : measured;
     const ratio = util / s.target;
-    const withinTolerance = Math.abs(ratio - 1) <= TOLERANCE;
+    const withinTolerance = Math.abs(ratio - 1) <= TOLERANCE + Number.EPSILON;
     const raw = withinTolerance ? current : Math.ceil(current * ratio);
     const desired = Math.min(s.max, Math.max(s.min, raw));
     recommendations = [...recommendations, desired].slice(-WINDOW);
     // Scale-down stabilization: never go below the highest recent recommendation.
-    const final = desired >= current ? desired : Math.min(current, Math.max(...recommendations));
+    const stabilized = desired >= current ? desired : Math.min(current, Math.max(...recommendations));
+    const final = Math.max(s.min, Math.min(s.max, stabilized, current + Math.max(4, current)));
 
     lastCalc =
       `ceil(${current} × ${util}% / ${s.target}%) = ${withinTolerance ? `${current} (dentro da tolerância de 10%)` : raw}` +
       ` → limitado a [${s.min}, ${s.max}] = ${desired}` +
-      (desired < current ? ` → janela de estabilização: ${final}` : '');
+      (desired < current ? ` → estabilização de 300s: ${final}` : ` → política de crescimento: ${final}`);
 
     if (final > current) {
       pods = [...pods, ...Array(final - current).fill(0)];
@@ -75,9 +79,9 @@ function step(s: State): State {
 }
 
 export default function HpaSim() {
-  const [s, setS] = useState<State>(initial);
+  const [s, setS] = useState<State>(initialHpa);
   const [running, setRunning] = useState(true);
-  useInterval(() => setS(step), running ? 800 : null);
+  useInterval(() => setS(stepHpa), running ? 800 : null);
 
   const ready = readyCount(s.pods);
   const util = utilization(s.load, ready);
@@ -89,7 +93,7 @@ export default function HpaSim() {
       toolbar={
         <>
           <button className="btn-ghost px-2 py-1" onClick={() => setRunning((r) => !r)}>{running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}</button>
-          <button className="btn-ghost px-2 py-1" onClick={() => setS(initial())}>Reset</button>
+          <button className="btn-ghost px-2 py-1" onClick={() => setS(initialHpa())}>Reset</button>
         </>
       }
     >
@@ -127,6 +131,7 @@ export default function HpaSim() {
           </div>
 
           <Chart history={s.history} target={s.target} max={s.max} />
+          <p className="mt-3 text-xs text-tactical-label">Relógio acelerado: cada passo representa 5s; avaliação a cada 15s. Redução estabilizada por 300s; crescimento de até 4 Pods ou 100% a cada avaliação. CPU relativa ao request de 200m. Métricas disponíveis para todos os Pods Ready neste cenário.</p>
           <div className="mt-3 rounded-md border border-tactical-border bg-black/50 p-3 font-mono text-xs text-signal-amber">
             <div className="label mb-1">Último cálculo do HPA</div>
             {s.lastCalc || 'aguardando primeira avaliação…'}

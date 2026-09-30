@@ -56,10 +56,10 @@ export const POLICIES: Record<string, AuditRule[]> = {
 };
 
 export function matches(r: AuditRule, q: AuditReq): boolean {
-  if (r.nonResource !== undefined) return !!q.nonResource === r.nonResource;
-  if (r.users && !r.users.includes(q.user)) return false;
-  if (r.verbs && !r.verbs.includes(q.verb)) return false;
-  if (r.resources && (!q.resource || !r.resources.includes(q.resource))) return false;
+  if (r.nonResource !== undefined && !!q.nonResource !== r.nonResource) return false;
+  if (r.users?.length && !r.users.includes(q.user)) return false;
+  if (r.verbs?.length && !r.verbs.includes(q.verb)) return false;
+  if (r.resources?.length && (!q.resource || !r.resources.includes(q.resource))) return false;
   return true;
 }
 
@@ -67,7 +67,7 @@ export function auditLevel(rules: AuditRule[], q: AuditReq): { level: AuditLevel
   const i = rules.findIndex((r) => matches(r, q));
   const level: AuditLevel = i === -1 ? 'None' : rules[i].level;
   let warning: string | undefined;
-  if (q.sensitive && (level === 'Request' || level === 'RequestResponse')) warning = 'o conteúdo do Secret vai parar no log de auditoria';
+  if (q.sensitive && (level === 'RequestResponse' || (level === 'Request' && ['create', 'update', 'patch'].includes(q.verb)))) warning = 'o conteúdo do Secret vai parar no log de auditoria';
   else if (q.securityRelevant && level === 'None') warning = 'ação sensível sem nenhum registro';
   return { level, rule: i, warning };
 }

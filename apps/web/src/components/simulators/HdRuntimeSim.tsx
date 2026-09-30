@@ -20,7 +20,7 @@ export const ACTIONS: { id: ActionId; label: string; prevent: Control[]; detect?
   { id: 'write-bin', label: 'Gravar um binário em /usr/local/bin', prevent: ['readOnlyRoot'], detect: 'Write below binary dir' },
   { id: 'token', label: 'Ler o token da ServiceAccount', prevent: ['noAutomount'] },
   { id: 'metadata', label: 'curl http://169.254.169.254/ (credenciais da nuvem)', prevent: ['egressPolicy'], detect: 'Contact cloud metadata service from container' },
-  { id: 'miner', label: 'Baixar e executar um minerador', prevent: ['egressPolicy', 'readOnlyRoot'], detect: 'Drop and execute new binary in container' },
+  { id: 'miner', label: 'Baixar um minerador de um destino externo bloqueado', prevent: ['egressPolicy'], detect: 'Drop and execute new binary in container' },
   { id: 'escape', label: 'mount/unshare para escapar para o host', prevent: ['dropCaps', 'seccomp'], detect: 'Change namespace privileges via unshare' },
 ];
 
@@ -56,7 +56,7 @@ export default function HdRuntimeSim() {
               {r.by.length > 0 && <div className="mt-1 text-xs text-tactical-dim">{r.by.join(' · ')}</div>}
             </li>
           ))}
-          <li className="text-xs text-tactical-label">Prevenção reduz o que o invasor consegue fazer; detecção garante que você saiba o que ele tentou. Os nomes das regras seguem o conjunto padrão do Falco (algumas vêm desabilitadas e precisam ser ativadas).</li>
+          <li className="text-xs text-tactical-label">Prevenção reduz o que o invasor consegue fazer; detecção depende das regras habilitadas e da coleta de eventos. Rootfs somente leitura não impede execução em memória ou em volumes graváveis. Os nomes das regras seguem o conjunto padrão do Falco (algumas vêm desabilitadas e precisam ser ativadas).</li>
         </ul>
       </div>
     </SimFrame>

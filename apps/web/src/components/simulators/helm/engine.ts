@@ -364,6 +364,15 @@ export class Engine {
   private command(cmd: Command, dot: Val, scope: Scope, piped?: { v: Val }): Val {
     const [head, ...rest] = cmd;
     if (head.t === 'ident') {
+      if (head.name === 'and' || head.name === 'or') {
+        if (!rest.length && !piped) throw new TemplateError(`wrong number of args for ${head.name}`);
+        let value: Val;
+        for (const term of rest) {
+          value = this.term(term, dot, scope);
+          if (truthy(value) === (head.name === 'or')) return value;
+        }
+        return piped ? piped.v : value;
+      }
       const args = rest.map((a) => this.term(a, dot, scope));
       if (piped) args.push(piped.v);
       return this.call(head.name, args, dot);
@@ -389,7 +398,7 @@ export class Engine {
     for (const key of t.path) {
       if (cur === undefined || cur === null) throw new TemplateError(`nil pointer evaluating interface {}.${key}`);
       if (!isMap(cur)) throw new TemplateError(`can't evaluate field ${key} in type ${Array.isArray(cur) ? '[]interface {}' : typeof cur}`);
-      cur = cur[key];
+      cur = Object.prototype.hasOwnProperty.call(cur, key) ? cur[key] : undefined;
     }
     return cur;
   }
@@ -409,7 +418,7 @@ export class Engine {
       case 'fail':
         throw new TemplateError(str(a[0]), undefined, true);
       case 'quote':
-        return a.map((x) => JSON.stringify(str(x))).join(' ');
+        return a.filter((x) => x !== null && x !== undefined).map((x) => JSON.stringify(str(x))).join(' ');
       case 'squote':
         return a.map((x) => `'${str(x)}'`).join(' ');
       case 'upper':
@@ -586,6 +595,6 @@ export function renderChart(files: ChartFile[], ctx: RenderContext): RenderResul
 
 /** Converte números do YAML para float64 (como o Helm), mantendo o resto. */
 export function parseValuesYaml(src: string): Val {
-  const parsed = YAML.parse(src, { intAsBigInt: false });
+  const parsed = YAML.parse(src, { intAsBigInt: false, version: '1.1' });
   return (parsed ?? {}) as Val;
 }

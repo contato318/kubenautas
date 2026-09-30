@@ -13,9 +13,9 @@ export interface Version {
 }
 
 export function parseVersion(raw: string): Version | null {
-  const m = raw.trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
-  if (!m) return null;
-  return { major: +m[1], minor: +m[2], patch: +m[3], pre: m[4] ? m[4].split('.') : [], raw: raw.trim() };
+  const m = raw.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
+  if (!m || m[4]?.split('.').some((x) => /^0[0-9]+$/.test(x))) return null;
+  return { major: +m[1], minor: +(m[2] ?? 0), patch: +(m[3] ?? 0), pre: m[4] ? m[4].split('.') : [], raw: raw.trim() };
 }
 
 export function compare(a: Version, b: Version): number {
@@ -40,6 +40,7 @@ export function compare(a: Version, b: Version): number {
 type Op = '=' | '!=' | '>' | '<' | '>=' | '<=';
 interface Clause {
   op: Op;
+  allowPre?: boolean;
   v: Version;
 }
 
@@ -89,7 +90,7 @@ export interface Constraint {
 }
 
 export function parseConstraint(input: string): Constraint {
-  const groups = input.split('||').map((g) => {
+  const groups = input.split('||').flatMap((g) => {
     const normalized = g.trim().replace(/(\S+)\s+-\s+(\S+)/g, '>=$1 <=$2').replace(/,/g, ' ');
     const terms = normalized.split(/\s+/).filter(Boolean);
     // junta operadores separados do número por espaço (">= 1.2")
@@ -99,15 +100,21 @@ export function parseConstraint(input: string): Constraint {
       else merged.push(t);
     }
     if (!merged.length) throw new Error('restrição vazia');
-    const clauses = merged.flatMap(expand);
-    return { clauses, hasPre: clauses.some((c) => c.v.pre.length > 0) };
+    let alternatives: Clause[][] = [[]];
+    for (const term of merged) {
+      const expanded = expand(term);
+      const clauses = expanded.map((c) => ({ ...c, allowPre: expanded.some((x) => x.v.pre.length > 0) }));
+      const choices = term.startsWith('!=') && clauses.length === 2 ? clauses.map((c) => [c]) : [clauses];
+      alternatives = alternatives.flatMap((prior) => choices.map((choice) => [...prior, ...choice]));
+    }
+    return alternatives.map((clauses) => ({ clauses, hasPre: clauses.some((c) => c.v.pre.length > 0) }));
   });
   const fmt = (c: Clause) => `${c.op}${c.v.major}.${c.v.minor}.${c.v.patch}${c.v.pre.length ? `-${c.v.pre.join('.')}` : ''}`;
   return { groups, expanded: groups.map((g) => g.clauses.map(fmt).join(' ')).join(' || ') };
 }
 
 export function satisfies(version: Version, c: Constraint): boolean {
-  return c.groups.some((g) => (version.pre.length === 0 || g.hasPre) && g.clauses.every((cl) => test(version, cl)));
+  return c.groups.some((g) => g.clauses.every((cl) => (version.pre.length === 0 || cl.allowPre) && test(version, cl)));
 }
 
 export function resolve(versions: string[], constraint: string) {

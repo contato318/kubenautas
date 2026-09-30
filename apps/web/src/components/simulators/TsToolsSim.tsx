@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Badge, SimFrame } from './kit';
+import { useAccount } from '../../auth/AccountProvider';
+import AccountNotice from '../AccountNotice';
 
 /** Desafio de comandos: qual ferramenta resolve cada situação real de investigação. */
 
@@ -13,7 +15,7 @@ export interface Mission {
 export const MISSIONS: Mission[] = [
   { situation: 'O container é distroless (sem shell) e você precisa inspecionar processos e a rede dele.', options: ['kubectl exec -it api -- sh', 'kubectl debug -it api --image=nicolaka/netshoot --target=api', 'kubectl attach api', 'kubectl cp api:/ ./'], answer: 1, why: 'O container efêmero compartilha o namespace de processos e de rede do alvo, com as ferramentas da imagem de debug.' },
   { situation: 'O Pod crasha em 1 segundo e você quer investigar o sistema de arquivos da imagem com calma.', options: ['kubectl logs api', 'kubectl debug api -it --copy-to=api-debug --container=api -- sh', 'kubectl rollout restart', 'kubectl describe node'], answer: 1, why: '--copy-to cria uma cópia do Pod trocando o comando do container por um shell, sem afetar o original.' },
-  { situation: 'Você precisa ver os logs de sistema (kubelet, containerd) de um nó sem acesso SSH.', options: ['kubectl logs node/worker-2', 'kubectl debug node/worker-2 -it --image=ubuntu  (e depois chroot /host)', 'kubectl top node worker-2', 'kubectl get events -n kube-system'], answer: 1, why: 'kubectl debug node cria um Pod privilegiado com o sistema de arquivos do nó montado em /host.' },
+  { situation: 'Você precisa ver os logs de sistema (kubelet, containerd) de um nó sem acesso SSH.', options: ['kubectl logs node/worker-2', 'kubectl debug node/worker-2 -it --image=ubuntu --profile=sysadmin  (e depois chroot /host)', 'kubectl top node worker-2', 'kubectl get events -n kube-system'], answer: 1, why: 'O perfil sysadmin de kubectl debug node cria um Pod privilegiado; o perfil padrão não é privilegiado. O exemplo usa um Pod com o sistema de arquivos do nó montado em /host.' },
   { situation: 'O container reiniciou; você quer ver o que ele imprimiu antes de morrer.', options: ['kubectl logs api', 'kubectl logs api --previous', 'kubectl describe api', 'kubectl get api -o yaml'], answer: 1, why: 'Sem --previous você vê a execução atual, que ainda não chegou ao erro.' },
   { situation: 'Quer os eventos do namespace em ordem cronológica para montar a linha do tempo do incidente.', options: ['kubectl get events --sort-by=.lastTimestamp', 'kubectl logs events', 'kubectl describe namespace', 'kubectl top events'], answer: 0, why: 'Eventos vêm fora de ordem por padrão. Lembre: eles expiram (1 hora por padrão).' },
   { situation: 'Você quer testar a API de um Service interno a partir do seu computador.', options: ['kubectl expose', 'kubectl port-forward svc/api 8080:80', 'kubectl proxy --port=80', 'kubectl run curl'], answer: 1, why: 'port-forward cria um túnel pelo API server até um Pod do Service.' },
@@ -24,6 +26,8 @@ export const MISSIONS: Mission[] = [
 ];
 
 export default function TsToolsSim() {
+  const { user, status } = useAccount();
+  const canAnswer = !!user && status === 'ready';
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState<(number | null)[]>(MISSIONS.map(() => null));
   const m = MISSIONS[idx];
@@ -32,13 +36,14 @@ export default function TsToolsSim() {
 
   return (
     <SimFrame title={`desafio de comandos · ${idx + 1}/${MISSIONS.length}`} toolbar={<span className="font-mono text-xs text-signal-green">acertos: {score}</span>}>
+      {!canAnswer && <AccountNotice />}
       <p className="text-lg font-semibold">{m.situation}</p>
       <div className="mt-4 space-y-2">
         {m.options.map((o, i) => {
           const answered = choice !== null;
           const style = !answered ? 'border-tactical-border hover:border-k8s-500' : i === m.answer ? 'border-signal-green bg-signal-green/10' : i === choice ? 'border-signal-red bg-signal-red/10' : 'border-tactical-border opacity-60';
           return (
-            <button key={o} disabled={answered} onClick={() => setPicked((p) => p.map((x, j) => (j === idx ? i : x)))} className={`block w-full rounded-md border px-4 py-2 text-left font-mono text-xs ${style}`}>
+            <button key={o} disabled={!canAnswer || answered} onClick={() => { if (canAnswer) setPicked((p) => p.map((x, j) => (j === idx ? i : x))); }} className={`block w-full rounded-md border px-4 py-2 text-left font-mono text-xs disabled:cursor-not-allowed ${style}`}>
               $ {o}
             </button>
           );

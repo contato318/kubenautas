@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import YAML from 'yaml';
 import { Badge, SimFrame } from './kit';
-import { Val, applySet, goPrint, goType, leaves, mergeValues, parseSet, GoInt, isMap } from './helm/values';
+import { Val, coalesceValues, applySet, goPrint, goType, leaves, mergeValues, parseSet, GoInt, isMap } from './helm/values';
 
 /** Merge de values: values.yaml do chart < -f (na ordem) < --set < --set-string. */
 
@@ -12,24 +12,25 @@ export interface Layer {
 
 export function computeValues(chart: string, files: string[], set: string, setString: string) {
   const layers: Layer[] = [];
-  const parse = (src: string) => (YAML.parse(src) ?? {}) as Val;
+  const parse = (src: string) => (YAML.parse(src, { version: '1.1' }) ?? {}) as Val;
   layers.push({ name: 'values.yaml (chart)', values: parse(chart) });
   files.forEach((f, i) => layers.push({ name: `-f values-${i === 0 ? 'prod' : 'extra'}.yaml`, values: parse(f) }));
   let final: Val = {};
   const origin = new Map<string, string>();
-  for (const l of layers) {
-    final = mergeValues(final, l.values);
+  for (const [k] of leaves(layers[0].values)) origin.set(k, layers[0].name);
+  for (const l of layers.slice(1)) {
+    final = mergeValues(final, l.values, true);
     for (const [k] of leaves(l.values)) origin.set(k, l.name);
   }
   for (const [flag, expr, asString] of [['--set', set, false], ['--set-string', setString, true]] as const) {
     for (const e of parseSet(expr, asString)) {
-      final = applySet(final, e);
+      final = applySet(final, e, true);
       const key = e.path.reduce<string>((acc, p) => (typeof p === 'number' ? `${acc}[${p}]` : acc ? `${acc}.${p}` : p), '');
       origin.set(key.replace(/\[\d+\]$/, ''), flag);
       origin.set(key, flag);
     }
   }
-  return { final, origin };
+  return { final: coalesceValues(layers[0].values, final), origin };
 }
 
 const toPlain = (v: Val): unknown => (v instanceof GoInt ? v.n : Array.isArray(v) ? v.map(toPlain) : isMap(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, toPlain(x)])) : v);
@@ -136,7 +137,7 @@ export default function HelmValuesSim() {
       )}
       <p className="mt-3 text-xs text-tactical-label">
         Regras: mapas se mesclam chave a chave; listas e escalares são substituídos inteiros; null apaga a chave herdada. Números de arquivos YAML viram
-        float64 (20240501 aparece como 2.0240501e+07 e 1.10 como 1.1); --set cria int64 para inteiros; --set-string sempre cria string.
+        float64 no Helm 3.17 usado aqui (20240501 aparece como 2.0240501e+07 e 1.10 como 1.1); --set cria int64 para inteiros; --set-string sempre cria string.
       </p>
     </SimFrame>
   );

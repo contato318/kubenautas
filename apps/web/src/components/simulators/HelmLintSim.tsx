@@ -13,13 +13,13 @@ export interface LintIssue {
 
 export const ISSUES: LintIssue[] = [
   { id: 'no-version', file: 'Chart.yaml', label: 'Chart.yaml sem o campo version', level: 'ERROR', message: '[ERROR] Chart.yaml: version is required' },
-  { id: 'bad-semver', file: 'Chart.yaml', label: 'version: "1.0" (não é SemVer completo)', level: 'ERROR', message: '[ERROR] Chart.yaml: version \'1.0\' is not a valid SemVerV2' },
+  { id: 'bad-semver', file: 'Chart.yaml', label: 'version: "1.0.0.0" (quatro componentes: versão inválida)', level: 'ERROR', message: '[ERROR] Chart.yaml: version \'1.0.0.0\' is not a valid SemVerV2' },
   { id: 'no-icon', file: 'Chart.yaml', label: 'Sem o campo icon', level: 'INFO', message: '[INFO] Chart.yaml: icon is recommended' },
   { id: 'bad-values', file: 'values.yaml', label: 'values.yaml com indentação quebrada', level: 'ERROR', message: '[ERROR] values.yaml: unable to parse YAML: error converting YAML to JSON: yaml: line 4: did not find expected key' },
   { id: 'schema', file: 'values.schema.json', label: 'replicaCount: "3" viola o values.schema.json', level: 'ERROR', message: '[ERROR] values.yaml: - replicaCount: Invalid type. Expected: integer, given: string' },
   { id: 'required', file: 'templates/deployment.yaml', label: 'Template usa required sem valor padrão', level: 'ERROR', message: '[ERROR] templates/: template: loja/templates/deployment.yaml:18:20: executing "loja/templates/deployment.yaml" at <required "image.tag é obrigatório" .Values.image.tag>: error calling required: image.tag é obrigatório' },
   { id: 'indent', file: 'templates/deployment.yaml', label: 'toYaml com indent errado', level: 'ERROR', message: '[ERROR] templates/deployment.yaml: unable to parse YAML: error converting YAML to JSON: yaml: line 22: mapping values are not allowed in this context' },
-  { id: 'name', file: 'templates/service.yaml', label: 'metadata.name com maiúsculas e _', level: 'ERROR', message: '[ERROR] templates/service.yaml: object name does not conform to Kubernetes naming requirements: "Loja_Service": metadata.name: Invalid value: "Loja_Service": a lowercase RFC 1123 label must consist of lower case alphanumeric characters or \'-\'' },
+  { id: 'name', file: 'templates/service.yaml', label: 'metadata.name com maiúsculas e _', level: 'WARNING', message: '[WARNING] templates/service.yaml: object name does not conform to Kubernetes naming requirements: "Loja_Service": metadata.name: Invalid value: "Loja_Service": a DNS-1035 label must consist of lower case alphanumeric characters or \'-\'' },
   { id: 'deprecated', file: 'templates/ingress.yaml', label: 'Ingress em networking.k8s.io/v1beta1', level: 'WARNING', message: '[WARNING] templates/ingress.yaml: networking.k8s.io/v1beta1 Ingress is deprecated in v1.19+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress' },
 ];
 

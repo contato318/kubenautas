@@ -3,7 +3,7 @@ import { Badge, MetricBox, SimFrame, Tone } from './kit';
 
 /**
  * Memória num nó: QoS, OOMKilled e despejo pelo kubelet.
- * - QoS: Guaranteed (request = limit > 0), BestEffort (nada definido), senão Burstable;
+ * - QoS: Guaranteed (CPU e memória: request = limit > 0), BestEffort (nada definido), senão Burstable;
  * - uso acima do limit → o kernel mata o container (OOMKilled);
  * - sob pressão de memória o kubelet despeja Pods nesta ordem: primeiro quem usa mais que o request,
  *   depois menor prioridade, depois quem mais excede o request.
@@ -18,13 +18,17 @@ export interface MemPod {
   limit: number; // 0 = sem limit
   usage: number;
   priority: number;
+  cpuRequest?: number; // millicores; absent = 0
+  cpuLimit?: number;
 }
 
 export type Qos = 'Guaranteed' | 'Burstable' | 'BestEffort';
 
 export function qosClass(p: MemPod): Qos {
-  if (p.request === 0 && p.limit === 0) return 'BestEffort';
-  if (p.limit > 0 && p.request === p.limit) return 'Guaranteed';
+  const cpuRequest = p.cpuRequest ?? 0;
+  const cpuLimit = p.cpuLimit ?? 0;
+  if (p.request === 0 && p.limit === 0 && cpuRequest === 0 && cpuLimit === 0) return 'BestEffort';
+  if (p.limit > 0 && p.request === p.limit && cpuLimit > 0 && cpuRequest === cpuLimit) return 'Guaranteed';
   return 'Burstable';
 }
 
@@ -40,6 +44,7 @@ export function evictionOrder(pods: MemPod[]): MemPod[] {
 }
 
 export interface NodeOutcome {
+  invalid: string[];
   pending: string[];
   oomKilled: string[];
   evicted: string[];
@@ -49,10 +54,12 @@ export interface NodeOutcome {
 
 export function simulateNode(pods: MemPod[]): NodeOutcome {
   // Agendamento por requests
+  const invalid = pods.filter((p) => (p.limit > 0 && p.limit < p.request) || ((p.cpuLimit ?? 0) > 0 && (p.cpuLimit ?? 0) < (p.cpuRequest ?? 0))).map((p) => p.name);
   let requested = 0;
   const scheduled: MemPod[] = [];
   const pending: string[] = [];
   for (const p of pods) {
+    if (invalid.includes(p.name)) continue;
     if (requested + p.request <= NODE_MEMORY) {
       requested += p.request;
       scheduled.push(p);
@@ -71,11 +78,11 @@ export function simulateNode(pods: MemPod[]): NodeOutcome {
       usage -= p.usage;
     }
   }
-  return { pending, oomKilled, evicted, pressure, usage };
+  return { invalid, pending, oomKilled, evicted, pressure, usage };
 }
 
 const INITIAL: MemPod[] = [
-  { name: 'api', request: 1024, limit: 1024, usage: 800, priority: 0 },
+  { name: 'api', cpuRequest: 500, cpuLimit: 500, request: 1024, limit: 1024, usage: 800, priority: 0 },
   { name: 'worker', request: 512, limit: 2048, usage: 1200, priority: 0 },
   { name: 'cache', request: 0, limit: 0, usage: 600, priority: 0 },
   { name: 'batch', request: 256, limit: 0, usage: 900, priority: 0 },
@@ -91,6 +98,7 @@ export default function QosSim() {
   const pct = Math.min(100, (outcome.usage / NODE_MEMORY) * 100);
 
   const statusOf = (p: MemPod): { text: string; tone: Tone } => {
+    if (outcome.invalid.includes(p.name)) return { text: 'Rejeitado pela API', tone: 'red' };
     if (outcome.pending.includes(p.name)) return { text: 'Pending', tone: 'dim' };
     if (outcome.oomKilled.includes(p.name)) return { text: 'OOMKilled', tone: 'red' };
     if (outcome.evicted.includes(p.name)) return { text: 'Evicted', tone: 'red' };
@@ -116,7 +124,7 @@ export default function QosSim() {
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="text-left">
-              {['Pod', 'request (Mi)', 'limit (Mi, 0 = sem)', 'uso (Mi)', 'prioridade', 'QoS', 'status'].map((h) => (
+              {['Pod', 'CPU request (m)', 'CPU limit (m)', 'request (Mi)', 'limit (Mi, 0 = sem)', 'uso (Mi)', 'prioridade', 'QoS', 'status'].map((h) => (
                 <th key={h} className="label px-2 py-1">{h}</th>
               ))}
             </tr>
@@ -128,6 +136,8 @@ export default function QosSim() {
               return (
                 <tr key={p.name} className="border-t border-tactical-border">
                   <td className="px-2 py-1.5 font-mono">{p.name}</td>
+                  <td className="px-2 py-1.5">{num(p.cpuRequest ?? 0, (v) => set(i, { cpuRequest: v }))}</td>
+                  <td className="px-2 py-1.5">{num(p.cpuLimit ?? 0, (v) => set(i, { cpuLimit: v }))}</td>
                   <td className="px-2 py-1.5">{num(p.request, (v) => set(i, { request: v }))}</td>
                   <td className="px-2 py-1.5">{num(p.limit, (v) => set(i, { limit: v }))}{invalid && <div className="text-[10px] text-signal-red">limit menor que request: a API rejeita</div>}</td>
                   <td className="px-2 py-1.5">{num(p.usage, (v) => set(i, { usage: v }))}</td>
@@ -166,7 +176,7 @@ export default function QosSim() {
         </ol>
       </div>
       <p className="mt-3 text-xs text-tactical-label">
-        OOMKilled é o kernel agindo no limit do container; Evicted é o kubelet protegendo o nó. Pods Guaranteed dentro do request são os últimos
+        Cada Pod tem um container. Guaranteed exige request igual ao limit, maior que zero, tanto para CPU quanto para memória. O agendamento deste cenário considera a memória. OOMKilled é o kernel agindo no limit do container; Evicted é o kubelet protegendo o nó. Pods Guaranteed dentro do request são os últimos
         da fila — mas nenhum Pod é imune se o nó ficar sem memória.
       </p>
     </SimFrame>

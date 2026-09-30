@@ -44,6 +44,7 @@ export interface Policy {
 const matches = (selector: Labels, labels: Labels) => Object.entries(selector).every(([k, v]) => labels[k] === v);
 
 function peerMatches(peer: Peer, policyNs: string, target: NetPod) {
+  if (peer.namespace === undefined && peer.labels === undefined) return true;
   if (target.external) return false; // sem ipBlock nesta simulação
   const nsOk = peer.namespace !== undefined ? target.namespace === peer.namespace : target.namespace === policyNs;
   const podOk = peer.labels ? matches(peer.labels, target.labels) : true;
@@ -51,7 +52,7 @@ function peerMatches(peer: Peer, policyNs: string, target: NetPod) {
 }
 
 const ruleAllows = (rule: Rule, policyNs: string, other: NetPod, port: number) =>
-  (rule.ports === undefined || rule.ports.includes(port)) && (rule.peers.length === 0 || rule.peers.some((p) => peerMatches(p, policyNs, other)));
+  (!rule.ports?.length || rule.ports.includes(port)) && (rule.peers.length === 0 || rule.peers.some((p) => peerMatches(p, policyNs, other)));
 
 export interface Verdict {
   allowed: boolean;
@@ -69,6 +70,7 @@ function direction(kind: 'Ingress' | 'Egress', subject: NetPod, other: NetPod, p
 }
 
 export function evaluate(src: NetPod, dst: NetPod, port: number, policies: Policy[]): Verdict {
+  if (!src.external && src.id === dst.id && src.namespace === dst.namespace) return { allowed: true, reason: 'tráfego do Pod consigo mesmo é permitido' };
   const egress = direction('Egress', src, dst, port, policies);
   if (!egress.allowed) return egress;
   const ingress = direction('Ingress', dst, src, port, policies);

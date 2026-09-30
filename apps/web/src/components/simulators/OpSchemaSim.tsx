@@ -44,7 +44,8 @@ function pruneAndDefault(obj: Record<string, unknown>, schema: Prop, path: strin
     if (!p) {
       pruned.push(`${path}.${k}`);
       delete obj[k];
-    } else if (p.type === 'object' && isObj(obj[k])) pruneAndDefault(obj[k] as Record<string, unknown>, p, `${path}.${k}`, pruned, defaulted);
+    } else if (obj[k] === null) delete obj[k]; // known, non-nullable field: prune before defaulting
+    else if (p.type === 'object' && isObj(obj[k])) pruneAndDefault(obj[k] as Record<string, unknown>, p, `${path}.${k}`, pruned, defaulted);
   }
   for (const [k, p] of Object.entries(schema.properties ?? {})) {
     if (obj[k] === undefined && p.default !== undefined) {

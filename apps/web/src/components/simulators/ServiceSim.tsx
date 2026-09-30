@@ -26,10 +26,10 @@ const initial = (): State => ({ pods: [newPod(), newPod(), newPod()], rr: 0, las
 
 const isEndpoint = (p: Pod) => p.labelApp === 'web' && p.ready;
 
-function sendRequest(s: State): State {
+export function sendRequest(s: State): State {
   const endpoints = s.pods.filter(isEndpoint);
   if (endpoints.length === 0) {
-    return { ...s, lastHit: null, failed: s.failed + 1, log: pushLog(s.log, logEntry('GET http://web → 503 / connection refused (Service sem endpoints!)', 'red')) };
+    return { ...s, lastHit: null, failed: s.failed + 1, log: pushLog(s.log, logEntry('GET http://web → connection refused (Service sem endpoints; camada TCP, sem resposta HTTP)', 'red')) };
   }
   const target = endpoints[s.rr % endpoints.length];
   return {
@@ -53,7 +53,7 @@ export default function ServiceSim() {
   const endpoints = s.pods.filter(isEndpoint);
 
   return (
-    <SimFrame title="service/web · ClusterIP 10.96.0.42" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => setS(initial())}>Reset</button>}>
+    <SimFrame title="service/web · ClusterIP 10.96.0.42 · distribuição cíclica didática" toolbar={<button className="btn-ghost px-2 py-1" onClick={() => setS(initial())}>Reset</button>}>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button className="btn-primary px-3 py-1.5" onClick={() => setS(sendRequest)}>
           <Send className="h-3.5 w-3.5" /> Enviar requisição

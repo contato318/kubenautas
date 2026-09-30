@@ -27,7 +27,7 @@ export function step(s: StatusState, a: StatusAction, cfg: StatusCfg): { state: 
   const statusWrite = (apply: () => void) => {
     apply();
     if (cfg.writesObservedGeneration) n.observedGeneration = s.generation;
-    if (!cfg.statusSubresource) {
+    if (!cfg.statusSubresource && (n.ready !== s.ready || n.reason !== s.reason || n.runningVersion !== s.runningVersion || n.observedGeneration !== s.observedGeneration)) {
       n.generation += 1;
       notes.push(`sem subrecurso status, a escrita do status também incrementou generation (${s.generation} → ${n.generation})`);
     }
@@ -61,11 +61,8 @@ export function step(s: StatusState, a: StatusAction, cfg: StatusCfg): { state: 
       if (cfg.statusSubresource) {
         notes.push('PATCH no endpoint principal com .status: o API server IGNORA o status (só /status altera). Nada mudou.');
       } else {
-        n.ready = 'True';
-        n.reason = 'Deployed';
-        if (cfg.writesObservedGeneration) n.observedGeneration = s.generation;
-        n.generation += 1;
-        notes.push('PATCH no endpoint principal: status gravado, e generation incrementou junto');
+        statusWrite(() => { n.ready = 'True'; n.reason = 'Deployed'; });
+        notes.push('PATCH no endpoint principal: generation muda somente se o conteúdo fora de metadata mudar');
       }
       break;
   }

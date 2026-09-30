@@ -93,7 +93,7 @@ export default function StatefulSetSim() {
         <div>
           <div className="mb-4 flex flex-wrap items-end gap-4">
             <Stepper label="replicas" value={s.replicas} min={0} max={6} onChange={(v) => setS((st) => ({ ...st, replicas: v, log: pushLog(st.log, logEntry(`$ kubectl scale sts web --replicas=${v}`, 'blue')) }))} />
-            <Choice label="podManagementPolicy" value={s.policy} onChange={(v) => setS((st) => ({ ...st, policy: v }))} options={[{ value: 'OrderedReady', label: 'OrderedReady' }, { value: 'Parallel', label: 'Parallel' }]} />
+            <Choice label="Recriar StatefulSet com política" value={s.policy} onChange={(v) => setS((st) => ({ ...st, policy: v, pods: [], log: pushLog(st.log, logEntry('StatefulSet recriado: podManagementPolicy é imutável; PVCs preservados', 'amber')) }))} options={[{ value: 'OrderedReady', label: 'OrderedReady' }, { value: 'Parallel', label: 'Parallel' }]} />
           </div>
 
           <div className="label mb-2">Pods (clique em um Pod para deletá-lo)</div>

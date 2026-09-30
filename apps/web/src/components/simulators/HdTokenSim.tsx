@@ -24,9 +24,9 @@ export function tokenExposure(c: TokenCfg): TokenExposure {
   const validity =
     c.kind === 'legacy'
       ? 'Não expira'
-      : `${c.expirationSeconds / 60} min (o kubelet renova antes de expirar; com --service-account-extend-token-expiration, o API server ainda aceita tokens montados por até 1 ano, mas registra o uso tardio)`;
+      : `${c.expirationSeconds / 60} min solicitados (o servidor pode limitar o TTL; o kubelet rotaciona a projeção, mas não renova uma cópia roubada)`;
   const invalidatedBy = c.kind === 'legacy' ? ['Apagar o Secret do token (ou a ServiceAccount)'] : ['Expiração', 'Remoção do Pod ao qual o token está vinculado', 'Remoção da ServiceAccount'];
-  const apiUsable = mounted && c.audience === 'api';
+  const apiUsable = mounted && (c.kind === 'legacy' || c.audience === 'api');
   const blast = !mounted
     ? 'Nada: não há token no container.'
     : !apiUsable
@@ -41,15 +41,42 @@ export function tokenExposure(c: TokenCfg): TokenExposure {
   return { mounted, validity, invalidatedBy, apiUsable, blast, risk };
 }
 
+/** Explicit projection: disable admission automount so a Vault token cannot hide a second API token. */
+export function tokenYaml(c: TokenCfg): string {
+  if (c.kind === 'legacy') return `apiVersion: v1
+kind: Secret
+metadata:
+  name: ci-token
+  annotations:
+    kubernetes.io/service-account.name: ci
+type: kubernetes.io/service-account-token
+# Cenário: Secret montado manualmente no Pod; não é o padrão atual.`;
+  return `spec:
+  serviceAccountName: api
+  automountServiceAccountToken: false${c.automount ? `
+  containers:
+    - name: app
+      image: nginx:1.27
+      volumeMounts:
+        - name: token
+          mountPath: /var/run/tokens
+          readOnly: true
+  volumes:
+    - name: token
+      projected:
+        sources:
+          - serviceAccountToken:
+              path: token${c.audience === 'vault' ? '\n              audience: vault' : ''}
+              expirationSeconds: ${c.expirationSeconds}` : '\n  # Nenhum volume de token projetado neste cenário.'}`;
+}
+
 export default function HdTokenSim() {
   const [c, setC] = useState<TokenCfg>({ kind: 'legacy', automount: true, expirationSeconds: 3600, audience: 'api', rbac: 'cluster-admin' });
   const r = tokenExposure(c);
   const set = (p: Partial<TokenCfg>) => setC((x) => ({ ...x, ...p }));
   const tone = r.risk === 'crítico' || r.risk === 'alto' ? 'red' : r.risk === 'médio' ? 'amber' : 'green';
 
-  const yaml = c.kind === 'legacy'
-    ? `apiVersion: v1\nkind: Secret\nmetadata:\n  name: ci-token\n  annotations:\n    kubernetes.io/service-account.name: ci\ntype: kubernetes.io/service-account-token   # token de longa duração`
-    : `spec:\n  serviceAccountName: api\n  automountServiceAccountToken: ${c.automount}\n  volumes:\n    - name: token\n      projected:\n        sources:\n          - serviceAccountToken:\n              path: token\n              audience: ${c.audience === 'api' ? 'https://kubernetes.default.svc' : 'vault'}\n              expirationSeconds: ${c.expirationSeconds}`;
+  const yaml = tokenYaml(c);
 
   return (
     <SimFrame title="token roubado · o que o atacante consegue" toolbar={<Badge tone={tone}>{`risco ${r.risk}`}</Badge>}>

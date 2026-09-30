@@ -25,6 +25,7 @@ export interface RetryResult {
 export function simulateRetries(outcomes: Outcome[], o: RetryOpts): RetryResult {
   const attempts: Attempt[] = [];
   let t = 0;
+  if (o.retries === 0) return { attempts: [{ t: 0, retry: 0, text: "Handler 'create_fn' has exceeded the number of retries (sem executar).", tone: 'red' }], final: 'failed' };
   for (let i = 0; i < outcomes.length; i++) {
     let out = outcomes[i];
     let msg = '';
@@ -48,7 +49,7 @@ export function simulateRetries(outcomes: Outcome[], o: RetryOpts): RetryResult 
     const text = `${msg}${out === 'temporary' ? `${h} failed temporarily: banco ainda provisionando` : `${h} failed with an exception. Will retry.`}  (próxima tentativa em ${delay}s)`;
     attempts.push({ t, retry: i, text, tone: 'amber' });
     if (o.retries !== null && i + 1 >= o.retries) {
-      attempts.push({ t, retry: i, text: `${h} has exceeded the number of retries.`, tone: 'red' });
+      attempts.push({ t: t + delay, retry: i + 1, text: `${h} has exceeded the number of retries.`, tone: 'red' });
       return { attempts, final: 'failed' };
     }
     t += delay;

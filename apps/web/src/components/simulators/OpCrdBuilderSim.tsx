@@ -22,20 +22,23 @@ export interface CrdResult {
   kubectl: string[];
 }
 
-const DNS_LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+const DNS_LABEL = /^[a-z]([-a-z0-9]*[a-z0-9])?$/;
+const validLabel = (s: string) => s.length <= 63 && DNS_LABEL.test(s);
+const validDomain = (s: string) => s.length <= 253 && s.split('.').every((p) => p.length <= 63 && /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(p));
 
 export function buildCrd(i: CrdInput): CrdResult {
+  i = { ...i, singular: i.singular || i.kind.toLowerCase() };
   const name = `${i.plural}.${i.group}`;
   const errors: string[] = [];
   const warnings: string[] = [];
-  if (!i.group.includes('.')) errors.push(`spec.group: Invalid value: "${i.group}": should be a domain with at least one dot`);
-  if (!DNS_LABEL.test(i.plural)) errors.push(`spec.names.plural: Invalid value: "${i.plural}": a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-'`);
-  if (!DNS_LABEL.test(i.singular)) errors.push(`spec.names.singular: Invalid value: "${i.singular}": a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-'`);
-  if (i.shortName && !DNS_LABEL.test(i.shortName)) errors.push(`spec.names.shortNames[0]: Invalid value: "${i.shortName}": a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-'`);
-  if (!/^[A-Z][A-Za-z0-9]*$/.test(i.kind)) errors.push(`spec.names.kind: Invalid value: "${i.kind}": use CamelCase começando com maiúscula (ex.: Database)`);
-  if (!DNS_LABEL.test(i.version)) errors.push(`spec.versions[0].name: Invalid value: "${i.version}": a DNS-1035 label must consist of lower case alphanumeric characters or '-'`);
+  if (!i.group.includes('.') || !validDomain(i.group)) errors.push(`spec.group: Invalid value: "${i.group}": must be a valid DNS subdomain with at least one dot`);
+  if (!validLabel(i.plural)) errors.push(`spec.names.plural: Invalid value: "${i.plural}": a lowercase DNS-1035 label (max 63 characters, starting with a letter) must consist of lower case alphanumeric characters or '-'`);
+  if (!validLabel(i.singular)) errors.push(`spec.names.singular: Invalid value: "${i.singular}": a lowercase DNS-1035 label (max 63 characters, starting with a letter) must consist of lower case alphanumeric characters or '-'`);
+  if (i.shortName && !validLabel(i.shortName)) errors.push(`spec.names.shortNames[0]: Invalid value: "${i.shortName}": a lowercase DNS-1035 label (max 63 characters, starting with a letter) must consist of lower case alphanumeric characters or '-'`);
+  if (!validLabel(i.kind.toLowerCase())) errors.push(`spec.names.kind: Invalid value: "${i.kind}": must match a DNS-1035 label after conversion to lowercase; CamelCase is a convention`);
+  if (!validLabel(i.version)) errors.push(`spec.versions[0].name: Invalid value: "${i.version}": a DNS-1035 label must consist of lower case alphanumeric characters or '-'`);
   else if (!/^v\d+((alpha|beta)\d+)?$/.test(i.version)) warnings.push(`"${i.version}" não segue o padrão vN / vNalphaN / vNbetaN: será ordenada depois das versões padrão pelo kubectl`);
-  if (i.group.endsWith('.k8s.io') || i.group.endsWith('.kubernetes.io')) errors.push(`metadata.annotations[api-approved.kubernetes.io]: Required value: protected groups must have approval annotation`);
+  if (i.group === 'k8s.io' || i.group === 'kubernetes.io' || i.group.endsWith('.k8s.io') || i.group.endsWith('.kubernetes.io')) errors.push(`metadata.annotations[api-approved.kubernetes.io]: Required value: protected groups must have approval annotation`);
   if (i.plural && i.plural === i.singular) warnings.push('plural igual ao singular: funciona, mas confunde (kubectl get database × databases)');
 
   const base = `/apis/${i.group}/${i.version}`;

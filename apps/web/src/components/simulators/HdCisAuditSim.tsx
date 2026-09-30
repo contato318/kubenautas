@@ -60,7 +60,7 @@ export default function HdCisAuditSim() {
   const fails = f.filter((x) => !x.pass);
 
   return (
-    <SimFrame title="kube-bench · control plane e nós" toolbar={<div className="flex gap-2"><button className="btn-ghost px-2 py-1" onClick={() => setC(INSEGURO)}>cluster "de laboratório"</button><button className="btn-ghost px-2 py-1" onClick={() => setC(PADRAO)}>kubeadm recente</button></div>}>
+    <SimFrame title="kube-bench · control plane e nós" toolbar={<div className="flex gap-2"><button className="btn-ghost px-2 py-1" onClick={() => setC(INSEGURO)}>cluster "de laboratório"</button><button className="btn-ghost px-2 py-1" onClick={() => setC(PADRAO)}>exemplo kubeadm + API pública</button></div>}>
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <div className="space-y-2">
           <div className="label">kube-apiserver</div>

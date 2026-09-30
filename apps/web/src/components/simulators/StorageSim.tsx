@@ -36,6 +36,7 @@ export interface PVC {
   phase: 'Pending' | 'Bound';
   volume?: string;
   hasConsumer: boolean;
+  deleting?: boolean;
   message?: string;
 }
 
@@ -62,11 +63,23 @@ export const initialStorage = (): StorageState => ({
 
 /** Tenta fazer o bind de todos os PVCs pendentes. Retorna o novo estado e as mensagens de evento. */
 export function reconcile(state: StorageState): { state: StorageState; events: string[] } {
+  const deletions: string[] = [];
+  for (const pvc of state.pvcs) {
+    if (pvc.deleting && !pvc.hasConsumer) {
+      const result = deleteClaim(state, pvc.name);
+      state = result.state;
+      deletions.push(...result.events);
+    }
+  }
   let pvs = [...state.pvs];
-  const events: string[] = [];
+  const events: string[] = deletions;
   const pvcs = state.pvcs.map((pvc) => {
-    if (pvc.phase === 'Bound') return pvc;
-    const sc = CLASSES.find((c) => c.name === pvc.storageClass)!;
+    if (pvc.phase === 'Bound' || pvc.deleting) return pvc;
+    const sc = CLASSES.find((c) => c.name === pvc.storageClass);
+    if (!sc) return { ...pvc, message: `StorageClass ${pvc.storageClass} não encontrada` };
+    if (sc.bindingMode === 'WaitForFirstConsumer' && !pvc.hasConsumer) {
+      return { ...pvc, message: 'waiting for first consumer to be created before binding' };
+    }
     const match = pvs
       .filter((pv) => pv.phase === 'Available' && pv.storageClass === pvc.storageClass && pv.accessModes.includes(pvc.accessMode) && pv.capacity >= pvc.size)
       .sort((a, b) => a.capacity - b.capacity)[0];
@@ -77,9 +90,6 @@ export function reconcile(state: StorageState): { state: StorageState; events: s
     }
     if (!sc.provisioner) {
       return { ...pvc, message: 'no persistent volumes available for this claim' };
-    }
-    if (sc.bindingMode === 'WaitForFirstConsumer' && !pvc.hasConsumer) {
-      return { ...pvc, message: 'waiting for first consumer to be created before binding' };
     }
     if (!sc.supports.includes(pvc.accessMode)) {
       return { ...pvc, message: `ProvisioningFailed: ${sc.provisioner} não suporta ${pvc.accessMode}` };
@@ -95,6 +105,10 @@ export function reconcile(state: StorageState): { state: StorageState; events: s
 export function deleteClaim(state: StorageState, name: string): { state: StorageState; events: string[] } {
   const pvc = state.pvcs.find((c) => c.name === name);
   if (!pvc) return { state, events: [] };
+  if (pvc.hasConsumer) return {
+    state: { ...state, pvcs: state.pvcs.map((c) => c.name === name ? { ...c, deleting: true, message: 'kubernetes.io/pvc-protection: aguardando a remoção do Pod consumidor' } : c) },
+    events: [`pvc/${name} Terminating: volume ainda em uso`],
+  };
   const events = [`pvc/${name} deletado`];
   let pvs = state.pvs;
   if (pvc.volume) {
@@ -157,10 +171,12 @@ export default function StorageSim() {
               <div key={c.name} className="rounded-md border border-tactical-border px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-sm">{c.name}</span>
-                  <Badge tone={phaseTone[c.phase]}>{c.phase}</Badge>
+                  <Badge tone={c.deleting ? 'amber' : phaseTone[c.phase]}>{c.deleting ? 'Terminating' : c.phase}</Badge>
                   <span className="font-mono text-xs text-tactical-label">{c.size}Gi · {c.accessMode} · {c.storageClass}{c.volume ? ` → ${c.volume}` : ''}</span>
                   <span className="ml-auto flex gap-2">
-                    {!c.hasConsumer && (
+                    {c.hasConsumer ? (
+                      <button className="btn-ghost px-2 py-1" onClick={() => apply({ state: { ...state, pvcs: state.pvcs.map((x) => x.name === c.name ? { ...x, hasConsumer: false } : x) }, events: [`Pod consumidor de ${c.name} removido`] })}>Remover Pod</button>
+                    ) : !c.deleting && (
                       <button className="btn-ghost px-2 py-1" onClick={() => apply({ state: { ...state, pvcs: state.pvcs.map((x) => (x.name === c.name ? { ...x, hasConsumer: true } : x)) }, events: [`pod usando ${c.name} agendado`] })}>Criar Pod que usa</button>
                     )}
                     <button className="btn-ghost px-2 py-1" onClick={() => apply(deleteClaim(state, c.name), 'amber')}>Apagar</button>

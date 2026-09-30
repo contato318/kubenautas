@@ -21,7 +21,7 @@ export interface Impact {
 
 export function assessWorkload(c: WorkloadCfg): { impacts: Impact[]; radius: 'container' | 'nó' | 'cluster' } {
   const impacts: Impact[] = [
-    { label: 'Acesso ao host (nó)', present: c.privileged || c.hostPathRoot || c.hostPidNet, detail: 'privileged, hostPath: / ou namespaces do host dão acesso ao nó' },
+    { label: 'Acesso ao host (nó)', present: c.privileged || c.hostPathRoot || c.hostPidNet, detail: 'privileged, hostPath: / ou namespaces do host ampliam a exposição ao nó; acesso aos namespaces não garante root no host' },
     { label: 'Token do cluster utilizável', present: c.tokenMounted, detail: 'token da ServiceAccount montado no container' },
     { label: 'Escalada via ServiceAccount', present: c.tokenMounted && c.saPrivileged, detail: 'a SA do Pod tem permissões amplas na API' },
     { label: 'Root no container', present: c.runAsRoot, detail: 'facilita alterar o container e usar binários privilegiados' },
@@ -29,8 +29,8 @@ export function assessWorkload(c: WorkloadCfg): { impacts: Impact[]; radius: 'co
     { label: 'Persistência no container', present: c.writableRoot, detail: 'rootfs gravável permite instalar ferramentas e persistir' },
   ];
   const nodeAccess = c.privileged || c.hostPathRoot || c.hostPidNet;
-  const clusterAccess = (c.tokenMounted && c.saPrivileged) || nodeAccess;
-  return { impacts, radius: clusterAccess ? 'cluster' : c.tokenMounted || c.runAsRoot ? 'nó' : 'container' };
+  const clusterAccess = c.tokenMounted && c.saPrivileged;
+  return { impacts, radius: clusterAccess ? 'cluster' : nodeAccess ? 'nó' : 'container' };
 }
 
 const PRESETS: Record<string, WorkloadCfg> = {
@@ -46,7 +46,7 @@ export default function PtWorkloadSim() {
   const T = (k: keyof WorkloadCfg, label: string) => <Toggle checked={c[k]} onChange={(v) => set({ [k]: v } as Partial<WorkloadCfg>)}><span className="font-mono text-[11px]">{label}</span></Toggle>;
 
   return (
-    <SimFrame title="avaliação de workload · alcance de um comprometimento" toolbar={<Badge tone={r.radius === 'cluster' ? 'red' : r.radius === 'nó' ? 'amber' : 'green'}>{`alcança: ${r.radius}`}</Badge>}>
+    <SimFrame title="avaliação de workload · alcance de um comprometimento" toolbar={<Badge tone={r.radius === 'cluster' ? 'red' : r.radius === 'nó' ? 'amber' : 'green'}>{`alcance potencial: ${r.radius}`}</Badge>}>
       <div className="mb-3 flex flex-wrap gap-2">{Object.keys(PRESETS).map((k) => <button key={k} className="btn-ghost px-2 py-1 text-xs" onClick={() => setC(PRESETS[k])}>{k}</button>)}</div>
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <div className="space-y-1.5">
@@ -66,7 +66,7 @@ export default function PtWorkloadSim() {
               <div className="mt-1 text-xs text-tactical-dim">{i.detail}</div>
             </li>
           ))}
-          <li className="text-xs text-tactical-label">O relatório classifica o achado pelo alcance: um Pod que só compromete a si mesmo é bem menos grave que um que dá o nó ou o cluster.</li>
+          <li className="text-xs text-tactical-label">Root no container e um token comum não garantem acesso ao nó. Credenciais do kubelet não equivalem a cluster-admin. O relatório classifica o achado pelo alcance potencial: um Pod que só compromete a si mesmo é bem menos grave que um que dá o nó ou o cluster.</li>
         </ul>
       </div>
     </SimFrame>

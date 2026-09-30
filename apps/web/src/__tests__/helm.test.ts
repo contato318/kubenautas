@@ -87,7 +87,7 @@ describe('values', () => {
   it('listas substituídas, null remove e precedência', () => {
     const lists = computeValues('env: [{name: A}, {name: B}]\n', ['env: [{name: C}]\n'], '', '').final as any;
     expect(lists.env).toEqual([{ name: 'C' }]);
-    const nulls = computeValues('a: {x: 1, y: 2}\nb: 1\n', ['a: {y: null}\n'], 'b=null', '').final as any;
+    const nulls = computeValues('a: {x: 1, z: 2}\nb: 1\n', ['a: {z: null}\n'], 'b=null', '').final as any;
     expect(nulls).toEqual({ a: { x: 1 } });
     const prec = computeValues('tag: "1"\nr: 1\n', ['r: 3\n'], 'tag=2', 'tag=03').final as any;
     expect(prec.tag).toBe('03');

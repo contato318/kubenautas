@@ -38,13 +38,13 @@ const phaseTone: Record<Phase, Tone> = {
   Unknown: 'dim',
 };
 
-function initial(): State {
+export function initialDeployment(): State {
   const nodes = ['worker-1', 'worker-2', 'worker-3'].map((name) => ({ name, ready: true, downFor: 0 }));
   const pods: Pod[] = nodes.map((n) => ({ name: `${RS}-${rid()}`, node: n.name, phase: 'Running', t: 0 }));
   return { desired: 3, pods, nodes, log: [logEntry('Deployment web criado com 3 réplicas', 'blue')] };
 }
 
-function step(s: State): State {
+export function stepDeployment(s: State): State {
   let log = s.log;
   const add = (text: string, tone?: Tone) => (log = pushLog(log, logEntry(text, tone)));
   const readyNodes = new Set(s.nodes.filter((n) => n.ready).map((n) => n.name));
@@ -57,7 +57,7 @@ function step(s: State): State {
   for (const p of s.pods) {
     const t = p.t + 1;
     if (p.phase === 'Terminating') {
-      if (t >= 2) add(`pod ${p.name} removido`, 'dim');
+      if (t >= 2 && (!p.node || readyNodes.has(p.node))) add(`pod ${p.name} removido`, 'dim');
       else pods.push({ ...p, t });
       continue;
     }
@@ -67,7 +67,7 @@ function step(s: State): State {
         add(`node-controller: ${p.node} NotReady há muito tempo → pod ${p.name} marcado para remoção`, 'red');
         pods.push({ ...p, phase: 'Terminating', t: 0 });
       } else {
-        if (p.phase !== 'Unknown') add(`pod ${p.name}: nó ${p.node} parou de responder → status Unknown`, 'amber');
+        if (p.phase !== 'Unknown') add(`pod ${p.name}: nó ${p.node} parou de responder → último status preservado, sem heartbeat`, 'amber');
         pods.push({ ...p, phase: 'Unknown', t });
       }
       continue;
@@ -119,9 +119,9 @@ function step(s: State): State {
 }
 
 export default function DeploymentSim() {
-  const [s, setS] = useState<State>(initial);
+  const [s, setS] = useState<State>(initialDeployment);
   const [running, setRunning] = useState(true);
-  useInterval(() => setS(step), running ? 900 : null);
+  useInterval(() => setS(stepDeployment), running ? 900 : null);
 
   const killPod = (name: string) =>
     setS((st) => ({
@@ -161,7 +161,7 @@ export default function DeploymentSim() {
           <button className="btn-ghost px-2 py-1" onClick={() => setRunning((r) => !r)} title={running ? 'Pausar' : 'Continuar'}>
             {running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </button>
-          <button className="btn-ghost px-2 py-1" onClick={() => setS(initial())}>Reset</button>
+          <button className="btn-ghost px-2 py-1" onClick={() => setS(initialDeployment())}>Reset</button>
         </>
       }
     >
@@ -176,7 +176,7 @@ export default function DeploymentSim() {
         <button className="btn-ghost px-3 py-1" onClick={addNode}>
           <Plus className="h-3.5 w-3.5" /> Adicionar nó
         </button>
-        <span className="text-xs text-tactical-label">Dica: clique num Pod para deletá-lo e no ícone de um nó para derrubá-lo.</span>
+        <span className="text-xs text-tactical-label">Clique num Pod para deletar ou num nó para derrubar. Tempos acelerados: 5 passos representam os 300s de tolerância após a detecção da falha. Sem kubelet, Pods podem permanecer Terminating.</span>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -232,7 +232,7 @@ function PodChip({ pod, onKill }: { pod: Pod; onKill: () => void }) {
       title="Clique para deletar"
     >
       <div className="text-tactical-text">{pod.name.slice(-11)}</div>
-      <Badge tone={phaseTone[pod.phase]}>{pod.phase}</Badge>
+      <Badge tone={phaseTone[pod.phase]}>{pod.phase === 'Unknown' ? 'Running (sem heartbeat)' : pod.phase}</Badge>
       <Skull className="absolute right-1 top-1 hidden h-3 w-3 text-signal-red group-hover:block" />
     </button>
   );

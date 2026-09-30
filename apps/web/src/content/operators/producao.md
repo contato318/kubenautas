@@ -78,14 +78,16 @@ Teste com `kubectl auth can-i --as=system:serviceaccount:db-system:db-operator p
 
 ## Alta disponibilidade e peering
 
-Duas réplicas ativas do mesmo operador processam cada evento **duas vezes** — handlers concorrentes, recursos externos duplicados. O **peering** do Kopf resolve: as réplicas se anunciam num objeto `KopfPeering`/`ClusterKopfPeering`, e só a de maior prioridade trabalha; as outras pausam.
+Duas réplicas ativas do mesmo operador processam cada evento **duas vezes** — handlers concorrentes, recursos externos duplicados. O **peering** do Kopf resolve: as réplicas se anunciam num objeto `KopfPeering`/`ClusterKopfPeering`, e só a de maior prioridade trabalha; as outras pausam. Com prioridades iguais (padrão: 0), **todas pausam por colisão**. Configure prioridades distintas em cada réplica.
 
 ```bash
 kubectl apply -f https://github.com/nolar/kopf/raw/main/peering.yaml   # CRDs de peering
+# Crie também um ClusterKopfPeering chamado db-operator.
 kopf run operator.py -A --peering=db-operator --priority=100
+# Outra réplica: --priority=50
 ```
 
-Se os CRDs de peering não existem, o Kopf avisa `Default peering object is not found, falling back to the standalone mode.` — e cada réplica age sozinha. Com `--standalone` isso é explícito. Sem peering, use **uma** réplica com `strategy: Recreate` (e aceite alguns segundos sem operador durante deploys — o modelo level-triggered recupera).
+Na autodetecção, se não existe o objeto de peering chamado default, o Kopf avisa `Default peering object is not found, falling back to the standalone mode.` — e cada réplica age sozinha. Com `--peering=nome`, o objeto é obrigatório: sua ausência pausa o operador. Com `--standalone`, executar sem coordenação é explícito. Sem peering, use **uma** réplica com `strategy: Recreate` (e aceite alguns segundos sem operador durante deploys — o modelo level-triggered recupera).
 
 ## Observabilidade
 

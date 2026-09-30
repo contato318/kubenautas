@@ -40,7 +40,7 @@ export default function HdSecretsSim() {
     <SimFrame title="Secret loja/db-credentials · vetores de exposição" toolbar={<Badge tone={n ? 'red' : 'green'}>{n ? `${n} vetores abertos` : 'nenhum vetor aberto'}</Badge>}>
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <div className="space-y-2">
-          <Choice label="EncryptionConfiguration (1º provider)" value={c.encryption} onChange={(x) => set({ encryption: x })} options={[{ value: 'identity', label: 'identity (sem criptografia)' }, { value: 'aescbc', label: 'aescbc (chave local)' }, { value: 'kms', label: 'kms v2 (chave externa)' }]} />
+          <Choice label="Provider (Secrets já regravados/criptografados)" value={c.encryption} onChange={(x) => set({ encryption: x })} options={[{ value: 'identity', label: 'identity (sem criptografia)' }, { value: 'aescbc', label: 'aescbc (chave local)' }, { value: 'kms', label: 'kms v2 (chave externa)' }]} />
           <Choice label="Backups do etcd" value={c.backup} onChange={(x) => set({ backup: x })} options={[{ value: 'none', label: 'nenhum' }, { value: 'plain-bucket', label: 'snapshot num bucket' }, { value: 'encrypted', label: 'cifrado e restrito' }]} />
           <Toggle checked={c.devsListSecrets} onChange={(x) => set({ devsListSecrets: x })}><span className="text-xs">Devs podem list secrets</span></Toggle>
           <Toggle checked={c.anyoneCreatesPods} onChange={(x) => set({ anyoneCreatesPods: x })}><span className="text-xs">Devs podem criar Pods/Deployments</span></Toggle>

@@ -3,7 +3,7 @@ import { Badge, Choice, RangeField, SimFrame, Tone } from './kit';
 
 /**
  * Linha do tempo de um nó com problema (valores padrão, simplificados):
- * - sem heartbeat por node-monitor-grace-period (~40 s): Ready=Unknown e taints unreachable (NoSchedule e NoExecute);
+ * - sem heartbeat por node-monitor-grace-period (~50 s): Ready=Unknown e taints unreachable (NoSchedule e NoExecute);
  * - Pods toleram unreachable/not-ready por 300 s (tolerationSeconds padrão) e depois são despejados;
  * - Pods de StatefulSet ficam Terminating até o nó confirmar ou ser removido (não há réplica duplicada);
  * - runtime travado: o kubelet vê o PLEG parado por 3 min e reporta Ready=False;
@@ -11,7 +11,7 @@ import { Badge, Choice, RangeField, SimFrame, Tone } from './kit';
  */
 
 export type Failure = 'kubelet' | 'network' | 'containerd' | 'disk';
-export const GRACE = 40;
+export const GRACE = 50;
 export const TOLERATION = 300;
 export const PLEG = 180;
 
@@ -33,9 +33,11 @@ export function snapshot(f: Failure, t: number): Snapshot {
 
   if (f === 'disk') {
     const pressure = t >= 30;
-    if (pressure) events.push('t=30s  NodeHasDiskPressure · taint node.kubernetes.io/disk-pressure:NoSchedule', 't=35s  kubelet: FreeDiskSpaceFailed → coleta de imagens não usadas');
+    if (pressure) events.push('t=30s  NodeHasDiskPressure · taint node.kubernetes.io/disk-pressure:NoSchedule');
+    if (t >= 35) events.push('t=35s  kubelet: FreeDiskSpaceFailed → coleta de imagens não usadas');
     const evicted = t >= 60;
-    if (evicted) events.push('t=60s  Evicted: The node was low on resource: ephemeral-storage', 't=62s  ReplicaSet cria web-7d9f-k8m em outro nó; StatefulSet recria db-0 (em outro nó, se o volume permitir)');
+    if (evicted) events.push('t=60s  Evicted: The node was low on resource: ephemeral-storage');
+    if (t >= 62) events.push('t=62s  ReplicaSet cria web-7d9f-k8m em outro nó; StatefulSet recria db-0 (em outro nó, se o volume permitir)');
     return {
       ready: 'True', reason: 'KubeletReady', diskPressure: pressure, taints: pressure ? ['node.kubernetes.io/disk-pressure:NoSchedule'] : [],
       pods: evicted ? pods(['Evicted (substituído em outro nó)', 'amber'], ['Evicted (recriado)', 'amber']) : pods(['Running', 'green'], ['Running', 'green']),
@@ -54,8 +56,8 @@ export function snapshot(f: Failure, t: number): Snapshot {
   const evict = t >= detect + TOLERATION;
   if (evict) {
     events.push(`t=${detect + TOLERATION}s  taint-eviction: Pods do nó marcados para remoção (tolerationSeconds=300 esgotado)`);
-    events.push(`t=${detect + TOLERATION + 2}s  ReplicaSet cria web-7d9f-p4q em outro nó`);
-    events.push(`t=${detect + TOLERATION + 2}s  db-0 fica Terminating: o kubelet não confirma e o StatefulSet não cria outro db-0`);
+    if (t >= detect + TOLERATION + 2) events.push(`t=${detect + TOLERATION + 2}s  ReplicaSet cria web-7d9f-p4q em outro nó`);
+    if (t >= detect + TOLERATION + 2) events.push(`t=${detect + TOLERATION + 2}s  db-0 fica Terminating: o kubelet não confirma e o StatefulSet não cria outro db-0`);
   }
   return {
     ready: unknown ? 'Unknown' : 'False',
@@ -105,7 +107,7 @@ export default function TsNodeSim() {
           <div className="label mb-1 mt-4">Eventos</div>
           <pre className="whitespace-pre-wrap rounded-md border border-tactical-border bg-black/60 p-3 font-mono text-[11px] leading-5 text-tactical-dim">{s.events.join('\n')}</pre>
           <p className="mt-3 text-xs text-tactical-label">
-            Com os padrões, um nó perdido leva ~40 s para virar Unknown e mais 5 minutos para os Pods serem despejados — ajuste tolerationSeconds de not-ready/unreachable para reagir
+            Com os padrões, um nó perdido leva ~50 s para virar Unknown e mais 5 minutos para os Pods serem despejados — ajuste tolerationSeconds de not-ready/unreachable para reagir
             mais rápido. Os valores exatos variam com a versão e a configuração do cluster.
           </p>
         </div>

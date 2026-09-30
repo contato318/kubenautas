@@ -10,7 +10,7 @@ export const NP: { id: NpToggle; label: string }[] = [
   { id: 'allowDns', label: 'permitir egress DNS para kube-dns (53/UDP e TCP)' },
   { id: 'allowFrontToApi', label: 'permitir frontend → api:8080' },
   { id: 'allowApiToDb', label: 'permitir api → db:5432' },
-  { id: 'allowApiInternet', label: 'permitir api → internet (0.0.0.0/0)' },
+  { id: 'allowApiInternet', label: 'permitir egress da api para IPv4 (0.0.0.0/0)' },
   { id: 'blockMetadata', label: 'excluir 169.254.169.254/32 (ipBlock.except)' },
 ];
 
@@ -21,22 +21,19 @@ export const DSTS: Dst[] = ['api', 'db', 'kube-dns', 'internet', 'metadata'];
 
 export function reach(p: Set<NpToggle>, src: Src, dst: Dst): boolean {
   if ((src as string) === dst) return true;
-  const egressOk = (() => {
-    // Sem default-deny de egress nada seleciona o tráfego de saída: "blockMetadata" não tem efeito.
-    if (!p.has('denyEgress')) return true;
-    if (dst === 'kube-dns') return p.has('allowDns');
-    if (dst === 'api') return src === 'frontend' && p.has('allowFrontToApi');
-    if (dst === 'db') return src === 'api' && p.has('allowApiToDb');
-    if (dst === 'internet') return src === 'api' && p.has('allowApiInternet');
-    return src === 'api' && p.has('allowApiInternet') && !p.has('blockMetadata');
-  })();
+  // Every selecting policy isolates its direction, including allow-only policies.
+  const frontRule = src === 'frontend' && p.has('allowFrontToApi');
+  const dbRule = src === 'api' && p.has('allowApiToDb');
+  const internetRule = src === 'api' && p.has('allowApiInternet');
+  const egressIsolated = p.has('denyEgress') || p.has('allowDns') || frontRule || dbRule || internetRule;
+  const egressOk = !egressIsolated ||
+    (dst === 'kube-dns' && p.has('allowDns')) ||
+    (dst === 'api' && frontRule) || (dst === 'db' && dbRule) ||
+    (internetRule && (dst !== 'metadata' || !p.has('blockMetadata')));
   if (!egressOk) return false;
-  const ingressOk = (() => {
-    if (dst !== 'api' && dst !== 'db') return true;
-    if (!p.has('denyIngress')) return true;
-    if (dst === 'api') return src === 'frontend' && p.has('allowFrontToApi');
-    return src === 'api' && p.has('allowApiToDb');
-  })();
+  const ingressIsolated = (dst === 'api' || dst === 'db') &&
+    (p.has('denyIngress') || (dst === 'api' ? p.has('allowFrontToApi') : p.has('allowApiToDb')));
+  const ingressOk = !ingressIsolated || (dst === 'api' ? frontRule : dbRule);
   return ingressOk;
 }
 
@@ -81,7 +78,7 @@ export default function HdNetpolMatrixSim() {
               return <li key={g.label} className={ok ? 'text-signal-green' : 'text-signal-red'}>{ok ? '✔' : '✖'} {g.label}</li>;
             })}
           </ul>
-          <p className="mt-2 text-xs text-tactical-label">Sem nenhuma policy, tudo fala com tudo — inclusive com o endpoint de metadata, que entrega credenciais da nuvem. Comece com default-deny em ingress e egress, libere o DNS e abra só os fluxos necessários. Lembre: NetworkPolicy só funciona se o CNI a implementa.</p>
+          <p className="mt-2 text-xs text-tactical-label">Sem nenhuma policy, tudo fala com tudo — inclusive com o endpoint de metadata, que entrega credenciais da nuvem. Comece com default-deny em ingress e egress, libere o DNS e abra só os fluxos necessários. Policies de allow também isolam os Pods selecionados. Neste cenário IPv4, ipBlock 0.0.0.0/0 inclui IPs de Pods; NAT e implementação do CNI podem mudar o IP avaliado. NetworkPolicy exige um CNI compatível.</p>
         </div>
       </div>
     </SimFrame>

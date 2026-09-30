@@ -49,7 +49,7 @@ export function evaluateOps(s: CPState): OpResult[] {
   });
   r.push({ op: 'Pods que já estavam rodando continuam atendendo', ok: true, msg: noApi ? 'sim: o kubelet mantém os containers, mas nada pode ser alterado' : 'sim' });
   r.push({ op: 'Resolução DNS dentro do cluster', ok: s.coredns, msg: s.coredns ? (noApi ? 'funciona para nomes já conhecidos (sem novas atualizações)' : 'funciona') : 'Could not resolve host: CoreDNS fora do ar' });
-  r.push({ op: 'Nó que cai é marcado como NotReady', ok: !noApi && s.controllerManager, msg: noApi || !s.controllerManager ? 'não: o node lifecycle controller não está atuando; o nó morto continua Ready e nada é reagendado' : 'sim, em ~40 s' });
+  r.push({ op: 'Nó que cai é marcado como NotReady', ok: !noApi && s.controllerManager, msg: noApi || !s.controllerManager ? 'não: o node lifecycle controller não está atuando; o nó morto continua Ready e nada é reagendado' : 'sim, em ~50 s' });
   return r;
 }
 

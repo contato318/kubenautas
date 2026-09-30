@@ -57,13 +57,30 @@ export function clone<T extends Val>(v: T): T {
 }
 
 /** Merge do Helm: override por cima de base. */
-export function mergeValues(base: Val, over: Val): Val {
+export function mergeValues(base: Val, over: Val, preserveNull = false): Val {
   if (!isMap(base) || !isMap(over)) return clone(over);
   const out: Record<string, Val> = clone(base);
   for (const [k, v] of Object.entries(over)) {
-    if (v === null) delete out[k];
-    else if (isMap(v) && isMap(out[k])) out[k] = mergeValues(out[k], v);
-    else out[k] = clone(v);
+    if (v === null && !preserveNull) delete out[k];
+    else if (isMap(v) && Object.prototype.hasOwnProperty.call(out, k) && isMap(out[k])) put(out, k, mergeValues(out[k], v, preserveNull));
+    else put(out, k, clone(v));
+  }
+  return out;
+}
+
+// Go maps treat __proto__ and constructor as ordinary keys.
+function put(obj: object, key: string | number, value: Val) {
+  Object.defineProperty(obj, key, { value, writable: true, configurable: true, enumerable: true });
+}
+
+/** User overrides are assembled first, then chart defaults are coalesced. */
+export function coalesceValues(defaults: Val, user: Val): Val {
+  if (!isMap(defaults) || !isMap(user)) return clone(user);
+  const out = clone(user);
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!Object.prototype.hasOwnProperty.call(out, key)) put(out, key, clone(value));
+    else if (out[key] === null) delete out[key];
+    else if (isMap(value) && isMap(out[key])) put(out, key, coalesceValues(value, out[key]));
   }
   return out;
 }
@@ -92,7 +109,7 @@ function splitUnescaped(s: string, sep: string): string[] {
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
     if (ch === '\\' && i + 1 < s.length) {
-      cur += s[++i];
+      cur += '\\' + s[++i];
       continue;
     }
     if (ch === '{') depth++;
@@ -108,14 +125,28 @@ function splitUnescaped(s: string, sep: string): string[] {
 
 function parsePath(key: string): (string | number)[] {
   const path: (string | number)[] = [];
-  for (const part of splitUnescaped(key, '.')) {
-    const m = part.match(/^([^[\]]*)((\[\d+\])*)$/);
-    if (!m) throw new Error(`chave inválida: ${key}`);
-    if (m[1]) path.push(m[1]);
-    for (const idx of m[2].match(/\d+/g) ?? []) path.push(Number(idx));
+  let part = '';
+  for (let i = 0; i < key.length; i++) {
+    const ch = key[i];
+    if (ch === '\\' && i + 1 < key.length) part += key[++i];
+    else if (ch === '.') {
+      if (part) { path.push(part); part = ''; }
+      else if (key[i - 1] !== ']') throw new Error(`chave inválida: ${key}`);
+    } else if (ch === '[') {
+      if (part) { path.push(part); part = ''; }
+      const end = key.indexOf(']', i);
+      const index = key.slice(i + 1, end);
+      if (end < 0 || !/^\d+$/.test(index) || Number(index) > 65536) throw new Error(`índice inválido: ${key}`);
+      path.push(Number(index));
+      i = end;
+    } else part += ch;
   }
+  if (part) path.push(part);
+  if (!path.length || typeof path[0] !== 'string' || key.endsWith('.')) throw new Error(`chave inválida: ${key}`);
   return path;
 }
+
+const unescape = (s: string) => s.replace(/\\(.)/g, '$1');
 
 /** Interpreta "a.b=1,c[0]=x,lista={a,b}" como o --set (ou --set-string) do Helm. */
 export function parseSet(expr: string, asString = false): SetEntry[] {
@@ -128,28 +159,26 @@ export function parseSet(expr: string, asString = false): SetEntry[] {
       const raw = assignment.slice(eq + 1);
       const value =
         raw.startsWith('{') && raw.endsWith('}')
-          ? raw
-              .slice(1, -1)
-              .split(',')
+          ? splitUnescaped(raw.slice(1, -1), ',')
               .filter((x) => x !== '')
-              .map((x) => typedVal(x, asString))
-          : typedVal(raw, asString);
+              .map((x) => typedVal(unescape(x), asString))
+          : typedVal(unescape(raw), asString);
       return { path, value };
     });
 }
 
-export function applySet(values: Val, entry: SetEntry): Val {
+export function applySet(values: Val, entry: SetEntry, preserveNull = false): Val {
   const root: Val = isMap(values) ? clone(values) : {};
   let cur: any = root;
   entry.path.forEach((seg, i) => {
     const last = i === entry.path.length - 1;
     if (last) {
-      if (entry.value === null && isMap(cur)) delete cur[seg as string];
-      else cur[seg] = entry.value;
+      if (entry.value === null && isMap(cur) && !preserveNull) delete cur[seg as string];
+      else put(cur, seg, entry.value);
       return;
     }
     const nextIsIndex = typeof entry.path[i + 1] === 'number';
-    if (cur[seg] === undefined || cur[seg] === null || typeof cur[seg] !== 'object') cur[seg] = nextIsIndex ? [] : {};
+    if (!Object.prototype.hasOwnProperty.call(cur, seg) || cur[seg] === null || typeof cur[seg] !== 'object') put(cur, seg, nextIsIndex ? [] : {});
     cur = cur[seg];
   });
   return root;

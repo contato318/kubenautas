@@ -19,6 +19,7 @@ export interface OperatorCfg {
   granted: Set<Perm>;
   scope: 'cluster' | 'namespace';
   replicas: 1 | 2;
+  distinctPriorities?: boolean;
   peering: 'installed' | 'absent' | 'standalone';
 }
 export interface OperatorResult {
@@ -48,7 +49,13 @@ export function checkOperator(c: OperatorCfg): OperatorResult {
     if (!g('peering')) {
       logs.push({ tone: 'red', text: `[ERROR] ${forbidden('watch', 'kopfpeerings.kopf.dev', 'kopf.dev', where)}` });
       healthy = false;
-    } else if (c.replicas === 2) logs.push({ tone: 'cyan', text: '[INFO] réplica b: Pausing operations in favour of [réplica a] — só uma processa por vez' });
+    } else if (c.replicas === 2) {
+      if (!c.distinctPriorities) {
+        logs.push({ tone: 'amber', text: '[WARNING] réplicas a e b com prioridade 0: ambas pausadas por colisão. Configure prioridades distintas.' });
+        return { logs, healthy: false, duplicates: false };
+      }
+      logs.push({ tone: 'cyan', text: '[INFO] prioridade a=100, b=0: réplica b pausada em favor de a' });
+    }
   } else {
     if (c.peering === 'absent') logs.push({ tone: 'amber', text: '[WARNING] Default peering object is not found, falling back to the standalone mode.' });
     if (c.replicas === 2) {
@@ -84,7 +91,8 @@ export default function OpRbacSim() {
   const [scope, setScope] = useState<OperatorCfg['scope']>('namespace');
   const [replicas, setReplicas] = useState<'1' | '2'>('2');
   const [peering, setPeering] = useState<OperatorCfg['peering']>('absent');
-  const r = checkOperator({ granted, scope, replicas: Number(replicas) as 1 | 2, peering });
+  const [distinctPriorities, setDistinctPriorities] = useState(false);
+  const r = checkOperator({ granted, scope, replicas: Number(replicas) as 1 | 2, peering, distinctPriorities });
   const toggle = (p: Perm, v: boolean) => setGranted((s) => { const n = new Set(s); v ? n.add(p) : n.delete(p); return n; });
 
   return (
@@ -94,8 +102,9 @@ export default function OpRbacSim() {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             <Choice label="escopo" value={scope} onChange={setScope} options={[{ value: 'namespace', label: 'namespace' }, { value: 'cluster', label: 'cluster' }]} />
             <Choice label="réplicas" value={replicas} onChange={setReplicas} options={[{ value: '1', label: '1' }, { value: '2', label: '2' }]} />
-            <Choice label="peering" value={peering} onChange={setPeering} options={[{ value: 'installed', label: 'CRDs instalados' }, { value: 'absent', label: 'sem CRDs' }, { value: 'standalone', label: '--standalone' }]} />
+            <Choice label="peering" value={peering} onChange={setPeering} options={[{ value: 'installed', label: 'CRDs + objeto default presentes' }, { value: 'absent', label: 'sem CRDs' }, { value: 'standalone', label: '--standalone' }]} />
           </div>
+          <Toggle checked={distinctPriorities} onChange={setDistinctPriorities}><span className="text-xs">Prioridades distintas: a=100, b=0 (padrão: ambas 0)</span></Toggle>
           <div className="label pt-1">Permissões concedidas à ServiceAccount</div>
           {PERMS.map((p) => <Toggle key={p.id} checked={granted.has(p.id)} onChange={(v) => toggle(p.id, v)}><span className="font-mono text-[11px]">{p.label}</span></Toggle>)}
         </div>

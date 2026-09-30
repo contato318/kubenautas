@@ -25,8 +25,8 @@ export function decodeExit(code: number): { title: string; detail: string; tone:
   if (code > 128 && code < 160) {
     const sig = SIGNALS[code - 128];
     return sig
-      ? { title: `Terminado pelo sinal ${code - 128} (${sig[0]})`, detail: sig[1], tone: code === 143 ? 'amber' : 'red' }
-      : { title: `Terminado pelo sinal ${code - 128}`, detail: 'Processo morto por um sinal (128 + número do sinal).', tone: 'red' };
+      ? { title: `Compatível com sinal ${code - 128} (${sig[0]})`, detail: sig[1] + '. Confirme Reason, signal e logs: a aplicação também pode retornar esse código explicitamente.', tone: code === 143 ? 'amber' : 'red' }
+      : { title: `Compatível com sinal ${code - 128}`, detail: 'Processo morto por um sinal (128 + número do sinal).', tone: 'red' };
   }
   if (code === 255) return { title: 'Saída 255 / -1', detail: 'Código fora do intervalo ou erro fatal genérico (ex.: ssh, alguns runtimes).', tone: 'red' };
   return { title: `Código ${code} definido pela aplicação`, detail: 'Códigos de 3 a 125 têm o significado que a aplicação escolher — consulte a documentação ou os logs.', tone: 'red' };

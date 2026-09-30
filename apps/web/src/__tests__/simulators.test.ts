@@ -128,7 +128,7 @@ describe('QoS e despejo', () => {
   const p = (name: string, request: number, limit: number, usage: number, priority = 0): MemPod => ({ name, request, limit, usage, priority });
 
   it('classifica a QoS', () => {
-    expect(qosClass(p('a', 512, 512, 0))).toBe('Guaranteed');
+    expect(qosClass({ ...p('a', 512, 512, 0), cpuRequest: 500, cpuLimit: 500 })).toBe('Guaranteed');
     expect(qosClass(p('b', 0, 0, 0))).toBe('BestEffort');
     expect(qosClass(p('c', 256, 1024, 0))).toBe('Burstable');
     expect(qosClass(p('d', 256, 0, 0))).toBe('Burstable');
@@ -310,7 +310,7 @@ describe('RBAC laboratório', () => {
   });
 
   it('deployments no apiGroup errado não concedem nada', () => {
-    const pairs: [string, Verb][] = [['deployments', 'get'], ['deployments', 'patch'], ['pods', 'get'], ['pods', 'list'], ['pods', 'watch']];
+    const pairs: [string, Verb][] = [['deployments', 'get'], ['deployments', 'patch'], ['deployments', 'list'], ['deployments', 'watch'], ['pods', 'get'], ['pods', 'list'], ['pods', 'watch']];
     expect(evaluateRole(role(pairs), mission('ci')).passed).toBe(true);
     expect(evaluateRole(role(pairs, { deployments: '' }), mission('ci')).passed).toBe(false);
   });

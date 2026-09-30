@@ -74,11 +74,13 @@ export const pushLog = (list: LogEntry[], ...items: LogEntry[]) => [...items.rev
 
 export function Stepper({ label, value, onChange, min = 0, max = 10 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="label">{label}</span>
-      <button className="btn-ghost px-2 py-1" disabled={value <= min} onClick={() => onChange(value - 1)}>−</button>
-      <span className="w-6 text-center font-mono">{value}</span>
-      <button className="btn-ghost px-2 py-1" disabled={value >= max} onClick={() => onChange(value + 1)}>+</button>
+      <span className="flex shrink-0 items-center gap-2">
+        <button className="btn-ghost px-2 py-1" disabled={value <= min} onClick={() => onChange(value - 1)}>−</button>
+        <span className="w-6 text-center font-mono">{value}</span>
+        <button className="btn-ghost px-2 py-1" disabled={value >= max} onClick={() => onChange(value + 1)}>+</button>
+      </span>
     </div>
   );
 }
@@ -112,9 +114,9 @@ export function Toggle({ checked, onChange, children }: { checked: boolean; onCh
 
 export function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="label">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value as T)} className="rounded-md border border-tactical-border bg-tactical-bg px-2 py-1.5 font-mono text-sm text-tactical-text">
+      <select value={value} onChange={(e) => onChange(e.target.value as T)} className="min-w-0 w-full rounded-md border border-tactical-border bg-tactical-bg px-2 py-1.5 font-mono text-sm text-tactical-text">
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}

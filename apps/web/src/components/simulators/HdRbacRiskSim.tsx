@@ -32,16 +32,16 @@ const RISKS: Record<RulePerm, { level: Level; why: string }> = {
   'read-pods': { level: 'baixo', why: 'Leitura de metadados. Cuidado: env com valores literais aparece na spec.' },
   logs: { level: 'baixo', why: 'Logs podem conter dados pessoais ou segredos logados por engano.' },
   'secrets-ns': { level: 'alto', why: 'list em secrets devolve o CONTEÚDO de todos os Secrets do namespace, incluindo tokens e senhas.' },
-  'secrets-cluster': { level: 'cluster-admin', why: 'Todos os Secrets do cluster, inclusive tokens de ServiceAccounts de controllers poderosos.' },
+  'secrets-cluster': { level: 'alto', why: 'Lê todos os Secrets. Só permite assumir outra identidade se credenciais utilizáveis estiverem armazenadas; tokens projetados de SA não são Secrets.' },
   'create-pods': { level: 'alto', why: 'Um Pod pode montar qualquer Secret e usar qualquer ServiceAccount do namespace — e, sem Pod Security, ser privilegiado e tomar o nó.' },
   deployments: { level: 'alto', why: 'Criar workloads equivale a criar Pods (o controller cria por você).' },
   'pods-exec': { level: 'alto', why: 'Shell em Pods de terceiros: lê o token e os Secrets montados deles.' },
   'sa-token': { level: 'alto', why: 'Emite tokens para qualquer ServiceAccount do namespace, herdando suas permissões.' },
-  'escalate-bind': { level: 'cluster-admin', why: 'escalate permite criar Roles com permissões que você não tem; bind permite vinculá-las — inclusive cluster-admin.' },
+  'escalate-bind': { level: 'alto', why: 'escalate/bind dispensam a proteção contra escalada, mas ainda exigem create/update/patch nas Roles e criação/alteração dos bindings. Esses verbos sozinhos não concedem cluster-admin.' },
   impersonate: { level: 'cluster-admin', why: 'Agir como outro usuário ou grupo (ex.: --as-group=system:masters).' },
-  'nodes-proxy': { level: 'cluster-admin', why: 'Acesso direto à API do kubelet: exec em qualquer Pod do nó, sem passar pela autorização de pods/exec.' },
+  'nodes-proxy': { level: 'alto', why: 'Acesso direto à API do kubelet: exec em qualquer Pod do nó, sem passar pela autorização de pods/exec.' },
   webhooks: { level: 'cluster-admin', why: 'Um webhook mutante sob seu controle pode alterar todo Pod criado no cluster.' },
-  'csr-approve': { level: 'cluster-admin', why: 'Aprovar CSRs (com o signer adequado) permite emitir certificados de cliente para identidades privilegiadas.' },
+  'csr-approve': { level: 'alto', why: 'update em certificatesigningrequests/approval não basta: a aprovação exige approve em signers. Emitir uma identidade também exige uma CSR e um signer que aceite o pedido.' },
   wildcard: { level: 'cluster-admin', why: 'Tudo, inclusive recursos que ainda serão criados (CRDs futuros).' },
 };
 
@@ -60,7 +60,7 @@ export default function HdRbacRiskSim() {
   const tone = (l: Level) => (l === 'cluster-admin' ? 'red' : l === 'alto' ? 'amber' : 'green');
 
   return (
-    <SimFrame title="Role time-dev · análise de risco" toolbar={<Badge tone={tone(r.effective)}>{`nível efetivo: ${r.effective}`}</Badge>}>
+    <SimFrame title="Regras RBAC · análise de risco" toolbar={<Badge tone={tone(r.effective)}>{`risco potencial: ${r.effective}`}</Badge>}>
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <div className="space-y-1.5">
           <div className="label">Permissões concedidas</div>
@@ -77,7 +77,7 @@ export default function HdRbacRiskSim() {
               ))}
             </ul>
           )}
-          <pre className="mt-3 overflow-x-auto rounded-md border border-tactical-border bg-black/60 p-3 font-mono text-[11px] leading-5 text-tactical-dim">{`kind: Role\nmetadata: { name: time-dev, namespace: loja }\nrules:\n${[...perms].map((p) => `  - ${RULES.find((y) => y.id === p)!.yaml}`).join('\n')}`}</pre>
+          <pre className="mt-3 overflow-x-auto rounded-md border border-tactical-border bg-black/60 p-3 font-mono text-[11px] leading-5 text-tactical-dim">{`# Regras ilustrativas: escopo depende de Role/ClusterRole e bindings.\n# Recursos de cluster exigem ClusterRole + ClusterRoleBinding.\nrules:\n${[...perms].map((p) => `  - ${RULES.find((y) => y.id === p)!.yaml}`).join('\n')}`}</pre>
           <p className="mt-2 text-xs text-tactical-label">Revise com <code>kubectl auth can-i --list --as=…</code> e ferramentas como rbac-tool, KubiScan ou kubescape. Permissões de escrita em workloads valem tanto quanto as permissões da ServiceAccount mais poderosa do namespace.</p>
         </div>
       </div>

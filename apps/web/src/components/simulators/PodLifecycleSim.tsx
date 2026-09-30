@@ -15,6 +15,8 @@ interface State {
   status: string;
   ready: boolean;
   restarts: number;
+  failures: number;
+  imageFailures: number;
   /** seconds remaining before the kubelet retries */
   backoff: number;
   phaseTime: number;
@@ -29,7 +31,7 @@ const MEM_LIMIT = 256;
 const PROBE_PERIOD = 3;
 const FAILURE_THRESHOLD = 3;
 /** Real backoff is 10s, 20s, 40s… capped at 300s; the simulator runs 5× faster. */
-const backoffFor = (restarts: number) => Math.min(300, 10 * 2 ** Math.max(0, restarts - 1)) / 5;
+export const lifecycleBackoff = (restarts: number) => Math.min(300, 10 * 2 ** Math.max(0, restarts - 1));
 
 const faults: { id: Fault; label: string; hint: string }[] = [
   { id: 'none', label: 'Saudável', hint: 'Tudo certo: Pod Running e Ready.' },
@@ -41,7 +43,7 @@ const faults: { id: Fault; label: string; hint: string }[] = [
   { id: 'unschedulable', label: 'Request gigante', hint: 'O Pod pede 64 CPUs: nenhum nó cabe → Pending.' },
 ];
 
-const initial = (fault: Fault = 'none'): State => ({
+export const initialLifecycle = (fault: Fault = 'none'): State => ({
   fault,
   t: 0,
   scheduled: false,
@@ -50,6 +52,8 @@ const initial = (fault: Fault = 'none'): State => ({
   status: 'Pending',
   ready: false,
   restarts: 0,
+  failures: 0,
+  imageFailures: 0,
   backoff: 0,
   phaseTime: 0,
   livenessFails: 0,
@@ -58,7 +62,7 @@ const initial = (fault: Fault = 'none'): State => ({
   log: [logEntry(`$ kubectl apply -f pod.yaml   (cenário: ${faults.find((f) => f.id === fault)!.label})`, 'blue')],
 });
 
-function step(prev: State): State {
+export function stepLifecycle(prev: State): State {
   const s: State = { ...prev, t: prev.t + 1, phaseTime: prev.phaseTime + 1 };
   const add = (text: string, tone?: Tone) => (s.log = pushLog(s.log, logEntry(`${String(s.t).padStart(3, ' ')}s  ${text}`, tone)));
 
@@ -79,13 +83,14 @@ function step(prev: State): State {
   if (!s.imagePulled) {
     if (s.backoff > 0) {
       s.backoff -= 1;
-      return s;
+      s.status = 'ImagePullBackOff';
+      if (s.backoff > 0) return s;
     }
     if (s.fault === 'image') {
       add('Warning Failed: Failed to pull image "nginx:1.99": manifest unknown', 'red');
-      s.status = s.status === 'ErrImagePull' || s.status === 'ImagePullBackOff' ? 'ImagePullBackOff' : 'ErrImagePull';
-      s.backoff = s.status === 'ErrImagePull' ? 2 : 4;
-      if (s.status === 'ImagePullBackOff') add('Normal BackOff: Back-off pulling image "nginx:1.99"', 'amber');
+      s.status = 'ErrImagePull';
+      s.imageFailures += 1;
+      s.backoff = lifecycleBackoff(s.imageFailures);
       return s;
     }
     s.imagePulled = true;
@@ -97,12 +102,13 @@ function step(prev: State): State {
     if (s.backoff > 0) {
       s.backoff -= 1;
       s.status = 'CrashLoopBackOff';
-      return s;
+      if (s.backoff > 0) return s;
     }
     s.container = 'waiting';
   }
 
   if (s.container === 'waiting') {
+    if (s.lastExit) s.restarts += 1;
     add('Normal Started: Started container web', 'green');
     s.container = 'starting';
     s.phaseTime = 0;
@@ -116,12 +122,15 @@ function step(prev: State): State {
   const kill = (reason: string, exit: string, tone: Tone = 'red') => {
     s.container = 'terminated';
     s.ready = false;
-    s.restarts += 1;
+    s.failures += 1;
     s.lastExit = exit;
     s.status = reason;
-    s.backoff = backoffFor(s.restarts);
-    add(`Warning BackOff: Back-off restarting failed container (próxima tentativa em ${s.backoff * 5}s)`, tone);
+    s.backoff = lifecycleBackoff(s.failures);
+    add(`Warning BackOff: Back-off restarting failed container (próxima tentativa em ${s.backoff}s)`, tone);
   };
+
+  // Ten minutes of healthy execution reset crash backoff, not restartCount.
+  if (s.phaseTime >= 600) s.failures = 0;
 
   // 4. Running container behaviour
   if (s.fault === 'crash' && s.phaseTime >= 2) {
@@ -150,7 +159,7 @@ function step(prev: State): State {
       add(`Warning Unhealthy: Liveness probe failed: Get "http://10.244.1.7:8080/healthz": context deadline exceeded (${s.livenessFails}/${FAILURE_THRESHOLD})`, 'amber');
       if (s.livenessFails >= FAILURE_THRESHOLD) {
         add('Normal Killing: Container web failed liveness probe, will be restarted', 'red');
-        kill('CrashLoopBackOff', 'Error (exit 137, liveness)');
+        kill('CrashLoopBackOff', 'Terminated (liveness; saída depende da aplicação)');
         return s;
       }
     } else {
@@ -179,11 +188,11 @@ const statusTone = (st: string): Tone =>
   st === 'Running' ? 'green' : st === 'Pending' || st === 'ContainerCreating' ? 'amber' : 'red';
 
 export default function PodLifecycleSim() {
-  const [s, setS] = useState<State>(() => initial());
+  const [s, setS] = useState<State>(() => initialLifecycle());
   const [running, setRunning] = useState(true);
-  useInterval(() => setS(step), running ? 700 : null);
+  useInterval(() => setS(stepLifecycle), running ? 200 : null);
 
-  const setFault = (fault: Fault) => setS(initial(fault));
+  const setFault = (fault: Fault) => setS(initialLifecycle(fault));
   const fix = () =>
     setS((st) => ({
       ...st,
@@ -199,7 +208,7 @@ export default function PodLifecycleSim() {
       toolbar={
         <>
           <button className="btn-ghost px-2 py-1" onClick={() => setRunning((r) => !r)}>{running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}</button>
-          <button className="btn-ghost px-2 py-1" onClick={() => setS(initial(s.fault))}>Recriar Pod</button>
+          <button className="btn-ghost px-2 py-1" onClick={() => setS(initialLifecycle(s.fault))}>Recriar Pod</button>
         </>
       }
     >

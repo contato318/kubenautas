@@ -143,7 +143,7 @@ data:
   numbers: {
     label: 'Números: float64 e printf',
     values: 'port: 8080\nbuild: 20240501\nversao: 1.10\n',
-    hint: 'Números de values viram float64: grandes saem em notação científica, 1.10 vira 1.1 e printf "%d" falha. Use aspas no values ou int/quote no template.',
+    hint: 'Neste laboratório (Helm 3.17), números de values viram float64: grandes saem em notação científica, 1.10 vira 1.1 e printf "%d" falha. Use aspas no values ou int/quote no template.',
     template: `apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -219,7 +219,7 @@ export default function HelmTemplateSim() {
           )}
           <p className="mt-3 text-xs text-tactical-label">
             Motor didático com as funções mais usadas (default, required, quote, toYaml, nindent, include, tpl, printf, range, with…). Como o Helm, valores
-            ausentes viram vazio e números de values são float64.
+            ausentes viram vazio e números de values são float64 no Helm 3.17. Versões mais recentes do Helm podem preservar números como json.Number.
           </p>
         </div>
       </div>
