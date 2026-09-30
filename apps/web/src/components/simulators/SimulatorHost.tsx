@@ -1,3 +1,4 @@
+import { simulationScope } from './simulationScope';
 import type { SimulatorId } from '../../types';
 import DeploymentSim from './DeploymentSim';
 import RollingUpdateSim from './RollingUpdateSim';
@@ -5,7 +6,8 @@ import ServiceSim from './ServiceSim';
 import SchedulerSim from './SchedulerSim';
 import HpaSim from './HpaSim';
 import PodLifecycleSim from './PodLifecycleSim';
-import KubectlTerminal from './KubectlTerminal';
+import { lazy, Suspense } from 'react';
+const KubectlTerminal = lazy(() => import('./KubectlTerminal'));
 import NetworkPolicySim from './NetworkPolicySim';
 import RbacSim from './RbacSim';
 import DrainPdbSim from './DrainPdbSim';
@@ -65,14 +67,13 @@ import PtLootSim from './PtLootSim';
 import PtToolsSim from './PtToolsSim';
 import PtReportSim from './PtReportSim';
 
-const map: Record<SimulatorId, () => JSX.Element> = {
+const map: Record<Exclude<SimulatorId, 'terminal'>, () => JSX.Element> = {
   deployment: DeploymentSim,
   'rolling-update': RollingUpdateSim,
   service: ServiceSim,
   scheduler: SchedulerSim,
   hpa: HpaSim,
   'pod-lifecycle': PodLifecycleSim,
-  terminal: KubectlTerminal,
   'network-policy': NetworkPolicySim,
   rbac: RbacSim,
   'drain-pdb': DrainPdbSim,
@@ -133,7 +134,14 @@ const map: Record<SimulatorId, () => JSX.Element> = {
   'pt-report': PtReportSim,
 };
 
-export default function SimulatorHost({ id }: { id: SimulatorId }) {
+export default function SimulatorHost({ id, workspace = false }: { id: SimulatorId; workspace?: boolean }) {
+  if (id === 'terminal') return <Suspense fallback={<p role="status" className="p-5 text-sm text-tactical-label">Carregando terminal e missões…</p>}><KubectlTerminal workspace={workspace} /></Suspense>;
   const Sim = map[id];
-  return <Sim />;
+  return <>
+    <Sim />
+    {simulationScope[id] && <details className="mt-3 rounded-md border border-tactical-border px-3 py-2 text-xs text-tactical-dim">
+      <summary className="cursor-pointer text-tactical-label">Sobre este cenário</summary>
+      <p className="mt-2 leading-relaxed">{simulationScope[id]}</p>
+    </details>}
+  </>;
 }

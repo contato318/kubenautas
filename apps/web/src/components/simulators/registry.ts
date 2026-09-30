@@ -8,7 +8,7 @@ export interface SimulatorInfo {
 }
 
 export const simulators: SimulatorInfo[] = [
-  { id: 'terminal', title: 'Terminal kubectl', emoji: '⌨️', description: 'Um cluster simulado com 3 nós que responde aos principais comandos do kubectl, com missões guiadas.' },
+  { id: 'terminal', title: 'Terminal kubectl', emoji: '⌨️', description: '23 missões em cinco níveis: opere um cluster com 1 control-plane e 2 workers, de Pods a troubleshooting e operação avançada.' },
   { id: 'deployment', title: 'Self-healing', emoji: '♻️', description: 'Mate Pods, derrube nós e mude réplicas: veja o ReplicaSet e o scheduler reconciliarem o estado.' },
   { id: 'rolling-update', title: 'Rolling update', emoji: '🚀', description: 'Ajuste maxSurge e maxUnavailable, faça deploy de uma versão quebrada e execute o rollback.' },
   { id: 'service', title: 'Service e endpoints', emoji: '🔀', description: 'Envie requisições e veja o balanceamento. Remova labels ou quebre a readiness e observe os endpoints.' },

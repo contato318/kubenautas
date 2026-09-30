@@ -10,6 +10,45 @@ body { font-family: Inter, system-ui, sans-serif; }
 .btn-primary { @apply btn border-k8s-500 bg-k8s-500 text-white hover:bg-k8s-600; }
 .btn-ghost { @apply btn border-tactical-line text-tactical-dim hover:bg-tactical-raised hover:text-tactical-text; }
 
+@layer components {
+  .lab-icon-button { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-tactical-label transition-colors hover:bg-tactical-raised hover:text-white; }
+}
+.lab-workspace :is(a, button, input:not(.kubectl-command-input)):focus-visible,
+.kubectl-workbench :is(button, input:not(.kubectl-command-input)):focus-visible { outline: 2px solid #5b8def; outline-offset: 3px; }
+.lab-workspace input:focus-visible,
+.kubectl-workbench input:focus-visible { outline-offset: 1px; }
+.kubectl-command-input, .kubectl-command-input:focus { border: 0; outline: none; box-shadow: none; }
+.lab-scroll { scrollbar-width: thin; scrollbar-color: #2f2f36 transparent; }
+.lab-canvas { background-image: radial-gradient(#26262b80 0.5px, transparent 0.5px); background-size: 18px 18px; }
+.lab-dialog { @apply rounded-xl border border-tactical-line bg-tactical-surface text-tactical-text shadow-2xl; }
+.lab-dialog::backdrop { background: rgb(0 0 0 / 65%); backdrop-filter: blur(4px); }
+.lab-drawer::backdrop { background: transparent; backdrop-filter: blur(0); transition: background 280ms ease-out, backdrop-filter 280ms ease-out; }
+.lab-drawer[data-open="true"]::backdrop { background: rgb(0 0 0 / 65%); backdrop-filter: blur(4px); }
+@starting-style {
+  .lab-drawer[data-open="true"]::backdrop { background: transparent; backdrop-filter: blur(0); }
+}
+.lab-progress { @apply block overflow-hidden rounded-full; appearance: none; background: #26262b; }
+.lab-progress::-webkit-progress-bar { background: #26262b; border-radius: 999px; }
+.lab-progress::-webkit-progress-value { background: #5b8def; border-radius: 999px; }
+.lab-progress::-moz-progress-bar { background: #5b8def; border-radius: 999px; }
+/* Embedded labs keep a bounded viewport; mission content scrolls inside its panel. */
+.kubectl-workbench-embedded { --kubectl-panel-height: clamp(420px, 72dvh, 680px); }
+.kubectl-workbench-embedded > section { height: var(--kubectl-panel-height); }
+.kubectl-workbench-embedded > aside { height: clamp(320px, 55dvh, 480px); }
+@media (min-width: 1024px) {
+  .kubectl-workbench-embedded > aside { height: var(--kubectl-panel-height); }
+}
+.kubectl-workbench-expanded { min-height: 100%; }
+.kubectl-workbench-expanded .kubectl-output { height: clamp(280px, 50dvh, 560px); flex: none; }
+@media (min-width: 1280px) {
+  .kubectl-workbench-expanded { height: 100%; min-height: 0; grid-template-columns: minmax(0, 1fr) 340px; }
+  .kubectl-workbench-expanded .kubectl-output { height: auto; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-workspace *, .kubectl-workbench * { transition: none !important; }
+  .lab-drawer::backdrop { transition: none; }
+}
+
 .prose-k8s h1 { @apply text-3xl font-bold mb-4 text-white; }
 .prose-k8s h2 { @apply text-xl font-semibold mt-10 mb-3 text-white border-b border-tactical-border pb-2; }
 .prose-k8s h3 { @apply text-lg font-semibold mt-6 mb-2 text-signal-cyan; }
