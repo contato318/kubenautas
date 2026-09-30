@@ -7,6 +7,9 @@ import { AuthController } from './auth/auth.controller';
 import { SessionGuard } from './auth/auth.guard';
 import { ProgressController } from './progress/progress.controller';
 import { ProgressService } from './progress/progress.service';
+import { CertificatesController } from './certificates/certificates.controller';
+import { CertificatesService } from './certificates/certificates.service';
+import { PublicCertificatesController } from './certificates/public-certificates.controller';
 import { ActivityController } from './activity/activity.controller';
 import { ActivityService } from './activity/activity.service';
 
@@ -17,7 +20,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, AuthController, ProgressController, ActivityController],
-  providers: [AppConfig, DatabaseService, UsersService, OAuthService, SessionGuard, ProgressService, ActivityService],
+  controllers: [HealthController, AuthController, ProgressController, CertificatesController, PublicCertificatesController, ActivityController],
+  providers: [AppConfig, DatabaseService, UsersService, OAuthService, SessionGuard, ProgressService, CertificatesService, ActivityService],
 })
 export class AppModule {}

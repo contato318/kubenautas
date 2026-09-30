@@ -5,6 +5,7 @@ import { allLessons, modules } from '../content/modules';
 import { cases } from '../content/cases';
 import { lessonKey } from '../hooks/useProgress';
 import ProgressMeter from '../components/ProgressMeter';
+import CertificateSection from '../components/CertificateSection';
 import DeleteAccountSection from '../components/DeleteAccountSection';
 import { useLoginPath } from '../hooks/useLoginPath';
 
@@ -75,6 +76,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <CertificateSection />
       <DeleteAccountSection key={user.id} />
     </div>
   );

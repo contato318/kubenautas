@@ -11,6 +11,8 @@ import CasePage from './pages/CasePage';
 import LoginPage from './pages/LoginPage';
 import WelcomePage from './pages/WelcomePage';
 import ProfilePage from './pages/ProfilePage';
+import CertificatePage from './pages/CertificatePage';
+import PublicCertificatePage from './pages/PublicCertificatePage';
 import LegalPage from './pages/LegalPage';
 
 export default function App() {
@@ -18,6 +20,7 @@ export default function App() {
     <Routes>
       <Route path="/entrar" element={<LoginPage />} />
       <Route path="/boas-vindas" element={<WelcomePage />} />
+      <Route path="/certificados/:id" element={<PublicCertificatePage />} />
       <Route element={<Layout><Outlet /></Layout>}>
         <Route path="/" element={<HomePage />} />
         <Route path="/trilha" element={<RoadmapPage />} />
@@ -25,6 +28,7 @@ export default function App() {
         <Route path="/termos-de-uso" element={<LegalPage kind="terms" />} />
         <Route path="/privacidade" element={<LegalPage kind="privacy" />} />
         <Route path="/lgpd" element={<LegalPage kind="lgpd" />} />
+        <Route path="/certificado" element={<CertificatePage />} />
         <Route path="/aprender/:moduleId/:slug" element={<LessonPage />} />
         <Route path="/simuladores/:simId?" element={<SimulatorsPage />} />
         <Route path="/casos" element={<CasesPage />} />
