@@ -1,0 +1,45 @@
+{
+  "name": "@jack-academy/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsc-watch --onSuccess \"node dist/main.js\"",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "db:migrate": "pnpm build && node dist/database/migrate.js",
+    "test": "pnpm build && node --test --test-concurrency=1 test/*.test.cjs"
+  },
+  "dependencies": {
+    "@jack-academy/contracts": "workspace:*",
+    "@nestjs/common": "^12.1.1",
+    "@nestjs/core": "^12.1.1",
+    "@nestjs/platform-express": "^12.1.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^16.6.1",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "passport": "^0.7.0",
+    "passport-oauth2": "^1.8.0",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/express": "^5.0.3",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^22.19.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-oauth2": "^1.8.0",
+    "@types/pg": "^8.15.5",
+    "supertest": "^7.1.4",
+    "tsc-watch": "^7.2.0",
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "dist",
+    "database"
+  ]
+}
