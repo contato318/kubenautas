@@ -5,6 +5,7 @@ import RoadmapPage from './pages/RoadmapPage';
 import LessonPage from './pages/LessonPage';
 import ExamPage from './pages/ExamPage';
 import SimulatorsPage from './pages/SimulatorsPage';
+import SimulatorWorkspace from './pages/SimulatorWorkspace';
 import NotFoundPage from './pages/NotFoundPage';
 import CasesPage from './pages/CasesPage';
 import CasePage from './pages/CasePage';
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/entrar" element={<LoginPage />} />
       <Route path="/boas-vindas" element={<WelcomePage />} />
       <Route path="/certificados/:id" element={<PublicCertificatePage />} />
+      <Route path="/simuladores/:simId" element={<SimulatorWorkspace />} />
       <Route element={<Layout><Outlet /></Layout>}>
         <Route path="/" element={<HomePage />} />
         <Route path="/trilha" element={<RoadmapPage />} />
@@ -39,7 +41,7 @@ export default function App() {
           <Route path="usuarios/:id" element={<AdminUserPage />} />
         </Route>
         <Route path="/aprender/:moduleId/:slug" element={<LessonPage />} />
-        <Route path="/simuladores/:simId?" element={<SimulatorsPage />} />
+        <Route path="/simuladores" element={<SimulatorsPage />} />
         <Route path="/casos" element={<CasesPage />} />
         <Route path="/casos/:slug" element={<CasePage />} />
         <Route path="/prova" element={<ExamPage />} />
