@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Terminal, Layers, GraduationCap, Activity } from 'lucide-react';
 import { modules, allLessons } from '../content/modules';
 import { lessonKey, useProgress } from '../hooks/useProgress';
-import { Logo } from '../components/Layout';
+import { Logo } from '../components/Brand';
 import { simulators } from '../components/simulators/registry';
 import { cases } from '../content/cases';
 import jackExpertsLogo from '../assets/jack-experts-white.png';
-import kubenautasGiraffe from '../assets/kubenautas-giraffe.png';
+import kubenautasGiraffe from '../assets/jack-academy-giraffe.png';
 
 export default function HomePage() {
   const { progress } = useProgress();

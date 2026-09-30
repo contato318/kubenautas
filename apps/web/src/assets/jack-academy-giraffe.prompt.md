@@ -1,13 +1,13 @@
-# Kubenautas giraffe
+# Jack Academy giraffe
 
 - Generated with the built-in image generation tool.
-- Output: `kubenautas-giraffe.png`.
+- Output: `jack-academy-giraffe.png`.
 - Character and color reference: `jack-experts-giraffe.png`, originally from https://jackexperts.com/assets/img/jac/mascote.png.
 
 ## Final prompt
 
 Use case: illustration-story.
-Asset type: production mascot illustration for the right side of the hero of Kubenautas, a dark Portuguese learning website about Kubernetes, container orchestration, interactive simulators and a kubectl terminal.
+Asset type: production mascot illustration for the right side of the hero of Jack Academy, a dark Portuguese learning website about Kubernetes, container orchestration, interactive simulators and a kubectl terminal.
 Input image: the supplied Jack Experts giraffe is a character and color reference, not a layout to copy.
 Primary request: create a NEW illustration of this recognizable giraffe actively learning and operating a Kubernetes lab. Keep its friendly long-necked giraffe identity, golden-yellow skin, warm orange-brown rounded spots, dark rectangular glasses and bright blue over-ear headphones. Replace the lounging scene with an engaged upright seated pose, working at a compact dark-blue laptop, one forehoof at the keyboard and the other gesturing toward a small floating diagram of three connected blue container/node cubes, with one simple white Kubernetes ship-wheel emblem on the central blue hexagonal node. Make the relationship between the laptop and the cluster clear, with restrained thin blue connector lines. Keep the giraffe the dominant subject and the cluster a secondary accent.
 Style/medium: polished flat 2D cartoon illustration, crisp clean contours, simple cel shading, clear geometric props, same visual family as the reference. Friendly and focused, suitable for adult technical education.

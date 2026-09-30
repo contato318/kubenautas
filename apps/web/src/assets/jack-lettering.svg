@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="240" viewBox="0 0 512 240" fill="none">
+  <title>Jack</title>
+  <desc>Lettering Jack com a letra a aberta no topo, líquido e bolhas amarelas saindo do frasco.</desc>
+  <g fill="#fff">
+    <circle cx="44" cy="30" r="16" />
+    <path d="M28 54H60V180C60 220 45 237 10 238L0 209C20 207 28 198 28 180V54Z" />
+    <path d="M132 54C97 62 72 86 72 123C72 163 103 193 146 193C164 193 180 187 191 181V193H224V123C224 87 198 61 164 54V84C183 91 191 106 191 123C191 147 173 165 148 165C123 165 105 147 105 123C105 105 116 91 132 84V54Z" />
+    <path d="M351 67L335 89C310 73 266 78 266 123C266 168 310 175 336 158L353 180C307 209 234 190 234 124C234 60 302 37 351 67Z" />
+    <path d="M359 0H397V108L457 52H508L434 119L512 196H461L405 141L397 148V196H359V0Z" />
+  </g>
+  <g fill="#f9b910">
+    <circle cx="145" cy="46" r="3" />
+    <circle cx="155" cy="60" r="5.5" />
+    <circle cx="145" cy="79" r="7.5" />
+    <circle cx="158" cy="104" r="11.5" />
+    <path d="M115 116C153 110 136 135 181 125C179 148 165 157 147 157C126 157 113 140 115 116Z" />
+  </g>
+</svg>
