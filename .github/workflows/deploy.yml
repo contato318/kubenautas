@@ -1,45 +1,43 @@
-name: Deploy GitHub Pages
+name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kubenautas
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: kubenautas_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U kubenautas -d kubenautas_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
-      # SPA: GitHub Pages serves 404.html for unknown paths, so deep links like /trilha still load the app.
-      - run: cp dist/index.html dist/404.html
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          TEST_DATABASE_URL: postgresql://kubenautas:test-only-password@localhost:5432/kubenautas_test
+      - run: pnpm build
+      - run: docker build --target api -t kubenautas-api:ci .
+      - run: docker build --target web -t kubenautas-web:ci .
