@@ -1,0 +1,17 @@
+{
+  "name": "@jack-academy/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "types": "dist/index.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/esm/index.js",
+  "scripts": {
+    "build": "tsc && tsc --module ESNext --outDir dist/esm --declaration false"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

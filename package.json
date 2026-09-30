@@ -1,32 +1,18 @@
 {
-  "name": "kubenautas",
+  "name": "jack-academy",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "packageManager": "pnpm@10.33.4",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "lucide-react": "^0.477.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-markdown": "^9.0.3",
-    "react-router-dom": "^7.1.1",
-    "remark-gfm": "^4.0.1",
-    "yaml": "^2.9.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.9"
+    "dev": "pnpm --filter @jack-academy/contracts build && pnpm --parallel --filter @jack-academy/api --filter @jack-academy/web dev",
+    "dev:web": "pnpm --filter @jack-academy/contracts build && pnpm --filter @jack-academy/web dev",
+    "dev:api": "pnpm --filter @jack-academy/contracts build && pnpm --filter @jack-academy/api dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @jack-academy/contracts build && pnpm -r test",
+    "preview": "pnpm --filter @jack-academy/web preview",
+    "db:migrate": "pnpm --filter @jack-academy/contracts build && pnpm --filter @jack-academy/api db:migrate"
   }
 }
