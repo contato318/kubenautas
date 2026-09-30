@@ -13,6 +13,10 @@ import WelcomePage from './pages/WelcomePage';
 import ProfilePage from './pages/ProfilePage';
 import CertificatePage from './pages/CertificatePage';
 import PublicCertificatePage from './pages/PublicCertificatePage';
+import AdminShell from './components/admin/AdminShell';
+import AdminOverviewPage from './pages/admin/AdminOverviewPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminUserPage from './pages/admin/AdminUserPage';
 import LegalPage from './pages/LegalPage';
 
 export default function App() {
@@ -29,6 +33,11 @@ export default function App() {
         <Route path="/privacidade" element={<LegalPage kind="privacy" />} />
         <Route path="/lgpd" element={<LegalPage kind="lgpd" />} />
         <Route path="/certificado" element={<CertificatePage />} />
+        <Route path="/admin" element={<AdminShell />}>
+          <Route index element={<AdminOverviewPage />} />
+          <Route path="usuarios" element={<AdminUsersPage />} />
+          <Route path="usuarios/:id" element={<AdminUserPage />} />
+        </Route>
         <Route path="/aprender/:moduleId/:slug" element={<LessonPage />} />
         <Route path="/simuladores/:simId?" element={<SimulatorsPage />} />
         <Route path="/casos" element={<CasesPage />} />

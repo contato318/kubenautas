@@ -10,6 +10,9 @@ import { ProgressService } from './progress/progress.service';
 import { CertificatesController } from './certificates/certificates.controller';
 import { CertificatesService } from './certificates/certificates.service';
 import { PublicCertificatesController } from './certificates/public-certificates.controller';
+import { AdminController } from './admin/admin.controller';
+import { AdminService } from './admin/admin.service';
+import { AdminGuard } from './admin/admin.guard';
 import { ActivityController } from './activity/activity.controller';
 import { ActivityService } from './activity/activity.service';
 
@@ -20,7 +23,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, AuthController, ProgressController, CertificatesController, PublicCertificatesController, ActivityController],
-  providers: [AppConfig, DatabaseService, UsersService, OAuthService, SessionGuard, ProgressService, CertificatesService, ActivityService],
+  controllers: [HealthController, AuthController, ProgressController, CertificatesController, PublicCertificatesController, AdminController, ActivityController],
+  providers: [AppConfig, DatabaseService, UsersService, OAuthService, SessionGuard, ProgressService, CertificatesService, AdminService, AdminGuard, ActivityService],
 })
 export class AppModule {}
