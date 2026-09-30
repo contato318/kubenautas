@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Outlet, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import RoadmapPage from './pages/RoadmapPage';
@@ -8,21 +8,30 @@ import SimulatorsPage from './pages/SimulatorsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import CasesPage from './pages/CasesPage';
 import CasePage from './pages/CasePage';
+import LoginPage from './pages/LoginPage';
+import WelcomePage from './pages/WelcomePage';
+import ProfilePage from './pages/ProfilePage';
+import LegalPage from './pages/LegalPage';
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      <Route path="/entrar" element={<LoginPage />} />
+      <Route path="/boas-vindas" element={<WelcomePage />} />
+      <Route element={<Layout><Outlet /></Layout>}>
         <Route path="/" element={<HomePage />} />
         <Route path="/trilha" element={<RoadmapPage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
+        <Route path="/termos-de-uso" element={<LegalPage kind="terms" />} />
+        <Route path="/privacidade" element={<LegalPage kind="privacy" />} />
+        <Route path="/lgpd" element={<LegalPage kind="lgpd" />} />
         <Route path="/aprender/:moduleId/:slug" element={<LessonPage />} />
-        <Route path="/simuladores" element={<SimulatorsPage />} />
-        <Route path="/simuladores/:simId" element={<SimulatorsPage />} />
+        <Route path="/simuladores/:simId?" element={<SimulatorsPage />} />
         <Route path="/casos" element={<CasesPage />} />
         <Route path="/casos/:slug" element={<CasePage />} />
         <Route path="/prova" element={<ExamPage />} />
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Layout>
+      </Route>
+    </Routes>
   );
 }

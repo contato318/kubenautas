@@ -1,15 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { CheckCircle2, XCircle, RotateCcw, Trophy } from 'lucide-react';
 import type { Question } from '../types';
+import { useAccount } from '../auth/AccountProvider';
+import AccountNotice from './AccountNotice';
 
 interface Props {
   questions: Question[];
   title?: string;
   onFinish?: (score: number) => void;
   passMark?: number;
+  resultContent?: ReactNode;
 }
 
-export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0.7 }: Props) {
+export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0.7, resultContent }: Props) {
+  const { user, status, saving, error } = useAccount();
+  const canAnswer = !!user && status === 'ready';
+  const showAccountNotice = !canAnswer || saving || !!error;
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -17,7 +23,7 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
   const current = questions[idx];
 
   const confirm = () => {
-    if (selected === null) return;
+    if (!canAnswer || selected === null || answers.length > idx) return;
     const next = [...answers, selected === current.answer];
     setAnswers(next);
     if (next.length === questions.length) onFinish?.(next.filter(Boolean).length / questions.length);
@@ -40,14 +46,16 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
     const passed = score >= passMark;
     return (
       <div className="panel p-6 text-center">
+        {showAccountNotice && <AccountNotice />}
         <Trophy className={`mx-auto mb-3 h-10 w-10 ${passed ? 'text-signal-amber' : 'text-tactical-label'}`} />
         <div className="label mb-1">{title} · resultado</div>
         <div className="text-4xl font-bold">
           {correct}/{questions.length}
         </div>
         <p className={`mt-2 ${passed ? 'text-signal-green' : 'text-signal-red'}`}>
-          {passed ? 'Aprovado! Lição concluída. 🎉' : `Você precisa de ${Math.round(passMark * 100)}% para concluir. Revise o conteúdo e tente de novo.`}
+          {passed ? 'Você atingiu a nota de aprovação! 🎉' : `Você precisa de ${Math.round(passMark * 100)}% para concluir. Revise o conteúdo e tente de novo.`}
         </p>
+        {resultContent}
         <button className="btn-ghost mt-5" onClick={restart}>
           <RotateCcw className="h-4 w-4" /> Refazer
         </button>
@@ -59,6 +67,7 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
 
   return (
     <div className="panel p-6">
+      {showAccountNotice && <AccountNotice />}
       <div className="mb-4 flex items-center justify-between">
         <span className="label">{title}</span>
         <span className="font-mono text-xs text-tactical-label">
@@ -85,9 +94,9 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
           return (
             <button
               key={i}
-              disabled={answered}
-              onClick={() => setSelected(i)}
-              className={`flex w-full items-start gap-3 rounded-md border px-4 py-3 text-left text-sm transition-colors ${style}`}
+              disabled={!canAnswer || answered}
+              onClick={() => { if (canAnswer) setSelected(i); }}
+              className={`flex w-full items-start gap-3 rounded-md border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed ${style}`}
             >
               <span className="font-mono text-tactical-label">{String.fromCharCode(65 + i)}</span>
               <span className="flex-1">{opt}</span>
@@ -104,7 +113,7 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
       )}
       <div className="mt-5 flex justify-end">
         {!answered ? (
-          <button className="btn-primary" disabled={selected === null} onClick={confirm}>
+          <button className="btn-primary" disabled={!canAnswer || selected === null} onClick={confirm}>
             Confirmar
           </button>
         ) : idx < questions.length - 1 ? (
@@ -120,4 +129,3 @@ export default function Quiz({ questions, title = 'Quiz', onFinish, passMark = 0
     </div>
   );
 }
-

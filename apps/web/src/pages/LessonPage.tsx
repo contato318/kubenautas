@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Target } from 'lucide-react';
 import { findLesson, modules } from '../content/modules';
 import { lessonKey, useProgress } from '../hooks/useProgress';
 import Markdown from '../components/Markdown';
@@ -7,16 +7,19 @@ import Quiz from '../components/Quiz';
 import SimulatorHost from '../components/simulators/SimulatorHost';
 import { simulators } from '../components/simulators/registry';
 import NotFoundPage from './NotFoundPage';
+import { useActivityVisit } from '../hooks/useActivity';
 
 export default function LessonPage() {
   const { moduleId = '', slug = '' } = useParams();
   const found = findLesson(moduleId, slug);
   const { progress, recordQuiz } = useProgress();
+  useActivityVisit('lesson_opened', found ? `${moduleId}/${slug}` : undefined);
   if (!found) return <NotFoundPage />;
 
   const { module, lesson, prev, next } = found;
   const key = lessonKey(module.id, lesson.slug);
   const done = !!progress.completed[key];
+  const best = progress.quizzes[key];
 
   return (
     <div className="mx-auto flex max-w-7xl gap-8 px-4 py-10">
@@ -67,6 +70,15 @@ export default function LessonPage() {
 
         <section className="mt-12 max-w-3xl">
           <div className="label mb-3">✅ Teste seus conhecimentos</div>
+          {best !== undefined ? (
+            <div role="status" aria-label="Resultado salvo desta lição" className="mb-4 flex items-start gap-3 rounded-lg border border-tactical-border bg-tactical-surface p-4">
+              {done ? <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-signal-green" /> : <Target aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-signal-amber" />}
+              <div>
+                <p className="text-sm font-medium">Melhor nota salva: <strong className={done ? 'text-signal-green' : 'text-signal-amber'}>{Math.round(best * 100)}%</strong></p>
+                <p className="mt-1 text-sm leading-6 text-tactical-dim">{done ? 'Lição concluída. Você pode refazer o quiz para revisar; sua melhor nota será mantida.' : `Sua tentativa foi registrada. Para concluir a lição, acerte pelo menos ${Math.ceil(lesson.quiz.length * 0.7)} de ${lesson.quiz.length} perguntas (70%). Você pode tentar novamente abaixo.`}</p>
+              </div>
+            </div>
+          ) : <p className="mb-4 text-sm leading-6 text-tactical-dim">Acerte pelo menos {Math.ceil(lesson.quiz.length * 0.7)} de {lesson.quiz.length} perguntas (70%) para concluir esta lição.</p>}
           <Quiz key={key} questions={lesson.quiz} title={`Quiz · ${lesson.title}`} onFinish={(s) => recordQuiz(key, s)} />
         </section>
 

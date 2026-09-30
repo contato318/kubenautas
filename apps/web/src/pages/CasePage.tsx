@@ -8,10 +8,14 @@ import { Badge } from '../components/simulators/kit';
 import { simulators } from '../components/simulators/registry';
 import { severityTone } from './CasesPage';
 import NotFoundPage from './NotFoundPage';
+import AccountNotice from '../components/AccountNotice';
+import { useActivityVisit } from '../hooks/useActivity';
+import { useAccount } from '../auth/AccountProvider';
 
 export default function CasePage() {
   const { slug = '' } = useParams();
   const found = findCase(slug);
+  useActivityVisit('case_opened', found ? slug : undefined);
   // key reinicia o estado ao navegar entre casos
   return found ? <CaseView key={slug} slug={slug} /> : <NotFoundPage />;
 }
@@ -19,6 +23,8 @@ export default function CasePage() {
 function CaseView({ slug }: { slug: string }) {
   const c = findCase(slug)!;
   const { progress, recordCase } = useProgress();
+  const { user, status } = useAccount();
+  const canAnswer = !!user && status === 'ready';
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
 
@@ -29,9 +35,11 @@ function CaseView({ slug }: { slug: string }) {
   const correct = selected === c.diagnosis.answer;
 
   const reveal = (choice: number | null) => {
+    if (choice !== null && (!canAnswer || answered)) return;
     if (choice !== null) setSelected(choice);
     setRevealed(true);
-    recordCase(c.slug, choice === c.diagnosis.answer);
+    // Visitors may read the solution without recording an answer.
+    if (canAnswer) void recordCase(c.slug, choice === c.diagnosis.answer);
   };
 
   return (
@@ -51,6 +59,7 @@ function CaseView({ slug }: { slug: string }) {
       </div>
 
       <section className="panel mt-8 p-6">
+        <AccountNotice />
         <div className="label mb-2 flex items-center gap-2">
           <Search className="h-3.5 w-3.5" /> Seu diagnóstico
         </div>
@@ -66,9 +75,9 @@ function CaseView({ slug }: { slug: string }) {
             return (
               <button
                 key={i}
-                disabled={answered}
+                disabled={!canAnswer || answered}
                 onClick={() => reveal(i)}
-                className={`flex w-full items-start gap-3 rounded-md border px-4 py-3 text-left text-sm transition-colors ${style}`}
+                className={`flex w-full items-start gap-3 rounded-md border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed ${style}`}
               >
                 <span className="font-mono text-tactical-label">{String.fromCharCode(65 + i)}</span>
                 <span className="flex-1">{opt}</span>
